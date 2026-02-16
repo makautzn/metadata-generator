@@ -1,108 +1,198 @@
+# Metadata Generator
 
-# spec2cloud
+AI-powered metadata extraction for images and audio files, built for editorial workflows. Upload media files and receive structured German-language metadata — descriptions, keywords, captions, and summaries — powered by [Azure AI Content Understanding](https://learn.microsoft.com/azure/ai-services/content-understanding/).
 
-**Spec2Cloud** is an AI-powered development workflow that transforms high-level product ideas into production-ready applications deployed on Azure—using specialized GitHub Copilot agents working together.
+## Overview
 
-## 🎯 Overview
+The Metadata Generator is a full-stack PoC application designed for editorial teams (inspired by *DIE RHEINPFALZ*) to automate the tagging and description of media assets. It consists of:
 
-This repository provides a preconfigured development environment and agent-driven workflow that works in two directions:
+- **Backend API** (`MetadataGenerator.Api`) — Python/FastAPI service that processes uploads via Azure AI Content Understanding
+- **Frontend** (`MetadataGenerator.Web`) — Next.js/React web app with a clean, light editorial UI
 
-- **Greenfield (Build New)**: Transform product ideas into deployed applications through structured specification-driven development
+### Features
 
-https://github.com/user-attachments/assets/f0529e70-f437-4a14-93bc-4ab5a0450540
+| Capability | Details |
+|---|---|
+| **Image analysis** | Description, caption, keywords, and EXIF extraction for JPEG, PNG, TIFF, WebP (max 10 MB) |
+| **Audio analysis** | Description, one-sentence summary, and keywords for MP3, WAV, OGG, FLAC, M4A, AAC, WMA (max 100 MB, max 15 min) |
+| **Batch processing** | Upload multiple files at once with real-time progress tracking |
+| **Copy & export** | One-click copy of metadata fields; export results as JSON or CSV |
+| **Webhook integration** | Receive processing results via authenticated webhook callbacks |
+| **German output** | All AI-generated metadata is in German |
 
+### API Endpoints
 
-- **Greenfield (Shell-Based)**: Start from a predefined “shell” baseline and let coding agents translate natural language requirements to fill in the gaps via code.
-   - https://github.com/EmeaAppGbb/shell-dotnet
-   - https://github.com/EmeaAppGbb/agentic-shell-dotnet
-   - https://github.com/EmeaAppGbb/agentic-shell-python
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `GET` | `/health/ready` | Readiness probe (verifies Azure connectivity) |
+| `POST` | `/api/v1/analyze/image` | Analyze a single image |
+| `POST` | `/api/v1/analyze/audio` | Analyze a single audio file |
+| `POST` | `/api/v1/analyze/batch` | Analyze multiple files in one request |
+| `POST` | `/api/v1/webhook/results` | Receive webhook result callbacks |
 
-
-
-- **Brownfield (Document Existing + Modernize)**: Reverse engineer existing codebases into comprehensive product and technical documentation and optionally modernize codebases
-
-Both workflows use specialized GitHub Copilot agents working together to maintain consistency, traceability, and best practices.
-
-## 🚀 Quick Start
-
-### Option 1: Use This Repository as a Template (Full Environment)
-
-**Greenfield (New Project)**:
-1. **Use this repo as a template** - Click "Use this template" to create your own GitHub repository
-2. **Open in Dev Container** - Everything is preconfigured in `.devcontainer/`
-3. **Describe your app idea** - The more specific, the better
-4. **Follow the workflow** - Use the prompts to guide specialized agents through each phase
-
-**Brownfield (Existing Codebase)**:
-1. **Use this repo as a template** - Click "Use this template" to create your own GitHub repository
-2. **copy your existing codebase** into the new repository
-3. **Open in Dev Container** - Everything is preconfigured in `.devcontainer/`
-4. **Run `/rev-eng`** - Reverse engineer codebase into specs and documentation
-5. **Run `/modernize`** - (optional) Create modernization plan and tasks
-6. **Run `/plan`** - (optional) Execute modernization tasks planned by the modernization agent
-
-### Option 2: Install Into Existing Project using VSCode Extension
-
-TODO
-
-### Option 3: Install Into Existing Project using APM CLI
-
-TODO
-
-### Option 4: Install Into Existing Project using Manual Script
-
-Transform any existing project into a spec2cloud-enabled development environment:
-
-**One-Line Install** (Recommended):
-```bash
-curl -fsSL https://raw.githubusercontent.com/EmeaAppGbb/spec2cloud/main/scripts/quick-install.sh | bash
-```
-
-**Manual Install**:
-```bash
-# Download latest release
-curl -L https://github.com/EmeaAppGbb/spec2cloud/releases/latest/download/spec2cloud-full-latest.zip -o spec2cloud.zip
-unzip spec2cloud.zip -d spec2cloud
-cd spec2cloud
-
-# Run installer
-./scripts/install.sh --full                    # Linux/Mac
-.\scripts\install.ps1 -Full                    # Windows
-
-# Start using workflows
-code .
-# Use @pm, @dev, @azure agents and /prd, /frd, /plan, /deploy prompts
-```
-
-**What Gets Installed**:
-- ✅ 8 specialized AI agents (PM, Dev Lead, Dev, Azure, Rev-Eng, Modernizer, Planner, Architect)
-- ✅ 13 workflow prompts
-- ✅ MCP server configuration (optional)
-- ✅ Dev container setup (optional)
-- ✅ APM configuration (optional)
-
-See **[INTEGRATION.md](INTEGRATION.md)** for detailed installation options and troubleshooting.
-
-
-## 📚 Documentation
-
-Longer guides are in the `docs/` folder (MkDocs-ready structure).
-
-- Docs index: [docs/index.md](docs/index.md)
-- Shell baselines: [docs/shells.md](docs/shells.md)
-- Architecture: [docs/architecture.md](docs/architecture.md)
-- Workflows: [docs/workflows.md](docs/workflows.md)
-- Generated docs structure: [docs/specs-structure.md](docs/specs-structure.md)
-- Standards / APM: [docs/apm.md](docs/apm.md)
-- Examples: [docs/examples.md](docs/examples.md)
-- Benefits: [docs/benefits.md](docs/benefits.md)
-
-For installation/integration scenarios, see [INTEGRATION.md](INTEGRATION.md).
-
-## 🤝 Contributing
-
-Contributions welcome! Extend with additional agents, prompts, or MCP servers.
+Interactive API docs are available at `/api/v1/docs` (Swagger) and `/api/v1/redoc` when the backend is running.
 
 ---
 
-**From idea to production in minutes, not months.** 🚀
+## Quick Start
+
+### Prerequisites
+
+- [Docker](https://www.docker.com/) (for Dev Container) **or** local installs of:
+  - Python 3.12+
+  - [uv](https://docs.astral.sh/uv/) (Python package manager)
+  - Node.js 20+ with [pnpm](https://pnpm.io/)
+- An **Azure AI Content Understanding** resource (endpoint URL + API key)
+
+### 1. Clone and open
+
+```bash
+git clone https://github.com/makautzn/metadata-generator.git
+cd metadata-generator
+```
+
+If using VS Code with Dev Containers, reopen in the container — all tooling is pre-installed.
+
+### 2. Configure the backend
+
+Create a `.env` file in `MetadataGenerator.Api/`:
+
+```env
+AZURE_CONTENT_UNDERSTANDING_ENDPOINT=https://<your-resource>.services.ai.azure.com
+AZURE_CONTENT_UNDERSTANDING_KEY=<your-api-key>
+```
+
+### 3. Start the backend
+
+```bash
+cd MetadataGenerator.Api
+uv sync
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Verify it's running:
+
+```bash
+curl http://localhost:8000/health
+# → {"status":"healthy"}
+```
+
+### 4. Start the frontend
+
+In a new terminal:
+
+```bash
+cd MetadataGenerator.Web
+pnpm install
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 5. Upload a file
+
+Drag and drop an image or audio file onto the upload area. Metadata results appear as tiles once processing completes.
+
+---
+
+## Project Structure
+
+```
+metadata-generator/
+├── MetadataGenerator.Api/          # Python backend
+│   ├── app/
+│   │   ├── core/                   # Config, dependencies
+│   │   ├── middleware/             # Correlation ID middleware
+│   │   ├── models/                 # Pydantic request/response models
+│   │   ├── routers/               # FastAPI route handlers
+│   │   ├── services/              # Azure Content Understanding client
+│   │   └── utils/                 # File validation, EXIF, audio utils
+│   └── tests/                     # pytest test suite (118 tests, ~92% coverage)
+├── MetadataGenerator.Web/          # Next.js frontend
+│   └── src/
+│       ├── app/                   # Page layout and entry point
+│       ├── components/            # UI components (tiles, upload, progress)
+│       ├── hooks/                 # React hooks (useFileUpload)
+│       ├── lib/                   # API client, types
+│       └── styles/                # Design tokens and theme
+├── specs/                         # Product specs, feature docs, task definitions
+│   ├── features/                  # Feature requirement documents
+│   ├── tasks/                     # Implementation task specs
+│   └── adr/                       # Architecture Decision Records
+└── docs/                          # MkDocs documentation site
+```
+
+---
+
+## Development
+
+### Running Tests
+
+**Backend:**
+
+```bash
+cd MetadataGenerator.Api
+uv run python -m pytest tests/ -q          # run all tests
+uv run python -m pytest tests/ --cov=app   # with coverage report
+```
+
+**Frontend:**
+
+```bash
+cd MetadataGenerator.Web
+pnpm test              # run all tests
+pnpm test:coverage     # with coverage
+```
+
+### Linting & Type Checking
+
+**Backend:**
+
+```bash
+cd MetadataGenerator.Api
+uv run ruff check app/ tests/     # lint
+uv run mypy app/                  # type check
+```
+
+**Frontend:**
+
+```bash
+cd MetadataGenerator.Web
+pnpm lint          # ESLint + Prettier
+pnpm typecheck     # TypeScript
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.12, FastAPI, Pydantic, uvicorn |
+| AI Service | Azure AI Content Understanding (`azure-ai-contentunderstanding`) |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4 |
+| Testing | pytest + pytest-cov (backend), Vitest + Testing Library (frontend) |
+| Tooling | uv, pnpm, Ruff, mypy, ESLint, Prettier |
+| Dev Environment | Dev Containers, Docker |
+
+---
+
+## Configuration
+
+All backend configuration is via environment variables (loaded from `.env`):
+
+| Variable | Required | Description |
+|---|---|---|
+| `AZURE_CONTENT_UNDERSTANDING_ENDPOINT` | Yes | Azure AI Content Understanding endpoint URL |
+| `AZURE_CONTENT_UNDERSTANDING_KEY` | Yes | Azure AI Content Understanding API key |
+| `ALLOWED_ORIGINS` | No | CORS origins (default: `["http://localhost:3000"]`) |
+| `LOG_LEVEL` | No | Logging level (default: `INFO`) |
+| `ENVIRONMENT` | No | Environment name (default: `development`) |
+| `WEBHOOK_API_KEYS` | No | Comma-separated API keys for webhook auth |
+
+---
+
+## License
+
+See [LICENSE.md](LICENSE.md).
