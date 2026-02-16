@@ -72,3 +72,13 @@ Define shared types in `lib/types.ts`:
 - Unit test: tile handles missing optional fields without errors
 - Snapshot test: ImageTile and AudioTile match expected structure
 - Coverage: ≥ 85%
+
+---
+
+## E2E Testing Findings
+
+The following issue was discovered and resolved during end-to-end testing:
+
+| # | Finding | Root Cause | Resolution |
+|---|---------|------------|------------|
+| 1 | **Audio tile description/summary order inverted** | The original `AudioTile` layout rendered the one-sentence summary above the full-text description. During editorial review, this felt unintuitive — users expected the longer, more detailed description at the top and the short summary as a secondary element below. | Swapped the render order in `AudioTile.tsx`: the full-text **description** is now displayed first (top), and the one-sentence **summary** is rendered second (below), providing a natural top-down reading flow from detailed to concise. |

@@ -51,6 +51,22 @@ This feature enables automatic extraction of structured metadata from uploaded a
 
 ## 4. Resolved Questions
 
-- **What is the maximum acceptable audio file duration or file size?** — Maximum **15 minutes** per audio file.
+- **What is the maximum acceptable audio file duration or file size?** — Maximum **15 minutes** per audio file. *(Originally 10 minutes; extended during E2E testing to accommodate real-world editorial audio.)*
 - **Should the system also produce a transcript in addition to the summary metadata?** — No, transcript output is not required.
 - **Is there a target production volume for audio files per month?** — No, there is no defined production volume target for audio files at this time.
+
+---
+
+## 5. E2E Testing Findings
+
+The following issues were identified and resolved during end-to-end testing (2026-02-16):
+
+| Finding | Resolution |
+|---------|-----------|
+| Azure SDK (`azure-ai-contentunderstanding`) uses API version `2025-11-01` by default; custom analyzers created on `2024-12-01-preview` were invisible to the SDK → `ModelNotFound` error. | Recreated custom analyzers (`audioMetadataExtractor`) on API version `2025-11-01` with `models.completion: gpt-4.1-mini`. |
+| Analyzer IDs containing hyphens (e.g. `audio-metadata-extractor`) are rejected on `2025-11-01`. | Switched to camelCase IDs: `audioMetadataExtractor`. |
+| Keywords returned as raw `ContentField` objects (e.g. `{'type': 'string', 'valueString': 'Tennis'}`) instead of plain strings. | Fixed keyword extraction to read `k.value` from each `ContentField` item. |
+| One-sentence summary (Kurz-Zusammenfassung) was a full paragraph. | Updated analyzer `Summary` field prompt to enforce single sentence (max 30 words). Added backend `_truncate_to_first_sentence()` safeguard. |
+| Audio tile displayed summary above description; users expected long description on top, short summary below. | Swapped order in `AudioTile` component: description first, summary second. |
+| `min_length=3` on `keywords` field was too strict — Azure sometimes returns fewer. | Relaxed `min_length` from 3 to 1 in both `ImageAnalysisResult` and `AudioAnalysisResult`. |
+| `aiohttp` not listed as a dependency but required at runtime by the Azure SDK. | Added `aiohttp` to `pyproject.toml` dependencies. |

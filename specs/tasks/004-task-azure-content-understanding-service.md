@@ -71,3 +71,20 @@ All text output fields must be in German — the system prompt / analyzer config
 - Unit test: keywords list contains between 3 and 15 items
 - Integration test: service can be resolved from FastAPI dependency injection
 - Coverage: ≥ 85%
+
+---
+
+## E2E Testing Findings
+
+The following issues were identified and resolved during end-to-end testing (2026-02-16):
+
+| Finding | Resolution |
+|---------|-----------|
+| `aiohttp` is required at runtime by the Azure Content Understanding SDK but was not listed as a project dependency. | Added `aiohttp` to `pyproject.toml`. |
+| Azure endpoint URL must be the base URL (e.g. `https://<resource>.services.ai.azure.com`). Project-scoped URLs with `/api/projects/<name>` path do not work with `AzureKeyCredential` / `Ocp-Apim-Subscription-Key` authentication. | Documented correct endpoint format; service validates and strips trailing paths. |
+| The SDK defaults to API version `2025-11-01` (found in `_configuration.py`). Custom analyzers created on `2024-12-01-preview` are invisible to the SDK, causing `ModelNotFound` (404) errors. | Custom analyzers must be created on API version `2025-11-01`. |
+| On `2025-11-01`, custom analyzer IDs cannot contain hyphens. | Use camelCase identifiers (e.g. `imageMetadataExtractor`, `audioMetadataExtractor`). |
+| On `2025-11-01`, custom analyzers require `models.completion` to be specified (e.g. `gpt-4.1-mini`). | Added `models: {completion: "gpt-4.1-mini"}` to analyzer creation payloads. |
+| Keywords array field: each element in `ContentField.value` is itself a `ContentField` object. `str(k)` produces the dict repr (`{'type': 'string', 'valueString': '...'}`). | Keyword extraction now reads `k.value` (the inner string) via `getattr(k, "value", k)`. |
+| `min_length=3` on keywords was too strict — Azure sometimes returns fewer keywords for simple content. | Relaxed to `min_length=1` in both `ImageAnalysisResult` and `AudioAnalysisResult`. |
+| Markdown-based keyword fallback captured artifacts like `image](pages/1`. | Added filter to exclude tokens containing `[]()#\|/` characters. |

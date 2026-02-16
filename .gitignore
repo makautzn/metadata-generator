@@ -4,3 +4,35 @@ apm_modules/
 **/AGENTS.md
 AGENTS.md
 .apm
+
+# Python virtual environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# MkDocs build output
+site/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# IDE / editor
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage & test artifacts
+htmlcov/
+.coverage
+coverage.xml
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

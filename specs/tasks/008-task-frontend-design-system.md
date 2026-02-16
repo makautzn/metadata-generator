@@ -64,3 +64,13 @@ Create reusable UI components in `components/ui/`:
 - Snapshot test: each component matches expected visual structure
 - Accessibility: components have proper ARIA roles and labels
 - Coverage: ≥ 85%
+
+---
+
+## E2E Testing Findings
+
+The following issue was discovered and resolved during end-to-end testing:
+
+| # | Finding | Root Cause | Resolution |
+|---|---------|------------|------------|
+| 1 | **Dark mode variants causing unintended styling** | The main page layout used Tailwind `dark:` variants (e.g., `dark:bg-neutral-900`, `dark:border-neutral-700`), which could activate depending on the user's OS theme preference. This conflicted with the intended clean, light editorial aesthetic inspired by *DIE RHEINPFALZ*. | Removed all `dark:` Tailwind variants from `page.tsx`. Replaced with explicit light-only values: `bg-[#f9fafb]` for page background, `border-[#e5e7eb]` for borders, and `text-[#9ca3af]` for muted text. The design system now enforces a consistent light editorial appearance regardless of the user's system theme. |
