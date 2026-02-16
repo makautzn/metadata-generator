@@ -1,19 +1,21 @@
-# Spec2Cloud Documentation
+# Metadata Generator
 
-This folder holds the long-form documentation that used to live in the root README.
+**AI-powered metadata extraction for images and audio files.**
 
-- Start here: if you’re new, read the root [README](../README.md) first.
+The Metadata Generator automates the creation of structured metadata — descriptions, keywords, captions, and summaries — from image and audio files using Azure Content Understanding.
 
-## Topics
+## Features
 
-- [Shell baselines (Greenfield)](shells.md)
-- [Architecture (Dev Container, MCP, Agents)](architecture.md)
-- [Workflows (Greenfield + Brownfield)](workflows.md)
-- [Generated documentation structure (`specs/` layout)](specs-structure.md)
-- [Managing standards with APM](apm.md)
-- [Example usage](examples.md)
-- [Key benefits](benefits.md)
+- **Image Analysis** — Upload images (JPEG, PNG, TIFF, WebP) and receive a description, keywords, and caption in German.
+- **Audio Analysis** — Upload audio files (MP3, WAV, M4A, OGG) and receive a description, keywords, and one-sentence summary in German.
+- **Batch Upload** — Process up to 20 files at once through the web UI.
+- **Export** — Copy individual fields or export all metadata as CSV/JSON.
+- **Webhook Integration** — Trigger extraction from external systems via a documented REST webhook.
 
-## Related guides
+## Quick Links
 
-- [Integration & installation guide](../INTEGRATION.md)
+- [Installation](getting-started/installation.md) — Set up the development environment
+- [Quick Start](getting-started/quick-start.md) — Get running in 5 minutes
+- [Architecture Overview](architecture/overview.md) — High-level system design
+- [REST API](api/rest-api.md) — API endpoint reference
+- [Development Guide](guides/development.md) — Day-to-day dev workflow

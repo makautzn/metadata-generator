@@ -1,0 +1,13 @@
+lockfile_version: '1'
+generated_at: '2026-02-16T11:20:27.793984+00:00'
+apm_version: 0.7.3
+dependencies:
+- repo_url: EmeaAppGbb/spec2cloud-guidelines
+  host: github.com
+  resolved_commit: c814714440ae6fb2d5b88c6efc620c6feb7e072c
+- repo_url: EmeaAppGbb/spec2cloud-guidelines-backend
+  host: github.com
+  resolved_commit: 890cf4ab65082c7685e2040b221234cf5c60696d
+- repo_url: EmeaAppGbb/spec2cloud-guidelines-frontend
+  host: github.com
+  resolved_commit: 703e182a30a6c9fd6bad9e965bedac34e50a65dc
