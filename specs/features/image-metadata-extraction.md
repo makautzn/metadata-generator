@@ -2,6 +2,7 @@
 
 **Parent PRD:** [specs/prd.md](../prd.md)
 **Requirements covered:** REQ-1, REQ-2, REQ-3, REQ-4
+**Related feature:** [Celebrity & Person Identification](celebrity-person-identification.md) (REQ-17–REQ-21) — celebrity names are appended to the keywords list produced by this feature.
 
 ---
 

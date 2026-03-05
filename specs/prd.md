@@ -44,6 +44,7 @@ The **Proof of Concept (PoC)** validates the feasibility and quality of automate
 | G-3 | Demonstrate a usable self-service upload experience | Editorial testers can upload files and view results without training or documentation |
 | G-4 | Confirm production-scale feasibility | Architecture review confirms the solution can handle ≥ 5 000 images/month with acceptable latency and cost |
 | G-5 | Enable system integration via webhook | External systems can trigger extraction and receive structured metadata via a documented webhook contract |
+| G-6 | Validate celebrity identification accuracy | ≥ 80 % of known public figures in PoC test images are correctly identified and tagged; zero false positives on images of non-public individuals |
 
 ---
 
@@ -58,6 +59,14 @@ The **Proof of Concept (PoC)** validates the feasibility and quality of automate
   - a **caption** (a concise, publication-ready image subtitle).
 - **[REQ-3]** Generated metadata must be in **German**.
 - **[REQ-4]** PoC must support processing of **10–20 images**; Production must support **≥ 5 000 images per month**.
+
+### Celebrity & Person Identification in Images ("Personenerkennung")
+
+- **[REQ-17]** When a recognizable public figure or celebrity appears in an image, the system must identify them by name and include their name(s) in the generated metadata.
+- **[REQ-18]** Celebrity names must appear as entries in the **existing keywords/tags list** (no separate metadata field). This ensures a single, unified tagging vocabulary for editorial search.
+- **[REQ-19]** The system must disable face blurring during image analysis so that the AI model can process facial features for identification (Azure Content Understanding `disable_face_blurring` configuration).
+- **[REQ-20]** Only persons identified with high confidence should be tagged. The system **must not tag non-public individuals** — if a face cannot be identified as a known public figure, it must be silently omitted from the keywords. No placeholder tags (e.g., "Unknown person") are permitted.
+- **[REQ-21]** Person names must be rendered in their commonly used form (e.g., "Angela Merkel", "Rafael Nadal") — not translated or localized.
 
 ### Audio Metadata Extraction ("Audio Analyse")
 
@@ -101,6 +110,20 @@ I want consistent, high-quality keywords generated for every image,
 so that editorial colleagues can find images efficiently through search.
 ```
 
+### Celebrity & Person Identification
+
+```gherkin
+As an editorial staff member,
+I want celebrities and public figures in my uploaded images to be automatically identified and tagged by name,
+so that I can search our media archive by person name without manually recognizing and tagging each individual.
+```
+
+```gherkin
+As a media librarian,
+I want person tags to only appear when identification is confident,
+so that our archive is not polluted with incorrect or speculative person labels.
+```
+
 ### Audio Metadata Extraction
 
 ```gherkin
@@ -142,14 +165,19 @@ so that metadata is generated automatically and returned for storage in our CMS 
 - **[A-3]** Internet connectivity to Azure cloud services is available in the target environment.
 - **[A-4]** Stakeholders will provide sample images and audio files for the PoC evaluation.
 - **[A-5]** The visual benchmark (*DIE RHEINPFALZ* website design) is used as directional inspiration, not a pixel-perfect replication target.
+- **[A-6]** Azure Content Understanding's `disable_face_blurring` configuration and underlying model are capable of identifying well-known public figures with sufficient accuracy for editorial use.
+- **[A-7]** Celebrity identification is limited to persons the AI model recognizes; the system does not maintain a custom face gallery or database.
+- **[A-8]** The PoC test dataset must include images of known celebrities/public figures, sourced specifically for validation of this feature (existing editorial dataset may not contain enough recognizable persons).
 
 ### Constraints
 
 - **[C-1]** The PoC must use **Azure Content Understanding** as the AI service.
-- **[C-2]** All generated output must be in **German**.
+- **[C-2]** All generated output must be in **German** (person names are an exception — they retain their commonly used form).
 - **[C-3]** The PoC web application must be a **single-page application** — no multi-page navigation.
 - **[C-4]** Production throughput must support at least **5 000 images per month**.
 - **[C-5]** Production integration must be achievable via a **webhook-based** interface (no proprietary SDKs or agents required on the consuming side).
+- **[C-6]** Face blurring must be disabled in the analyzer configuration to enable celebrity identification. Privacy implications must be reviewed with the editorial and legal teams before production rollout.
+- **[C-7]** The `disable_face_blurring` feature is an **Azure Limited Access** capability. The Azure subscription must be approved via the [Face Recognition intake form](https://aka.ms/facerecognition) before the feature can be activated. Without this approval, the API rejects the parameter with `InvalidParameter`.
 
 ---
 

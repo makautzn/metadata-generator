@@ -241,6 +241,65 @@ class AzureContentUnderstandingService:
 
         return ["Allgemein", "Inhalt", "Medium"]
 
+    # Placeholder labels that should never appear as person names
+    _PERSON_PLACEHOLDER_PATTERNS: frozenset[str] = frozenset({
+        "unknown", "unbekannt", "person", "mann", "frau",
+        "unknown person", "unbekannte person", "unbekannter mann", "unbekannte frau",
+    })
+
+    @staticmethod
+    def _extract_persons(fields: dict[str, ContentField] | None) -> list[str]:
+        """Extract and filter person names from the ``Persons`` field.
+
+        Returns a list of cleaned person name strings.  Filters out empty
+        values, placeholder labels, and markdown artefacts.
+        """
+        if not fields:
+            return []
+        persons_field = fields.get("Persons")
+        if persons_field is None:
+            return []
+        value: Any = getattr(persons_field, "value", None)
+        if not isinstance(value, list):
+            return []
+
+        names: list[str] = []
+        for item in value:
+            raw = str(getattr(item, "value", item)).strip()
+            if not raw:
+                continue
+            # Discard markdown artefacts
+            if any(ch in raw for ch in "[]()#|/"):
+                continue
+            # Discard placeholder labels
+            if raw.lower() in AzureContentUnderstandingService._PERSON_PLACEHOLDER_PATTERNS:
+                continue
+            names.append(raw)
+        return names
+
+    @staticmethod
+    def _merge_persons_into_keywords(
+        keywords: list[str],
+        persons: list[str],
+        *,
+        max_keywords: int = 15,
+    ) -> list[str]:
+        """Append person names to keywords with case-insensitive dedup.
+
+        Subject-matter keywords are prioritised.  Person names are appended
+        after them, up to *max_keywords* total.
+        """
+        seen_lower: set[str] = {kw.lower() for kw in keywords}
+        merged = list(keywords)
+        for name in persons:
+            if name.lower() in seen_lower:
+                continue
+            if len(merged) >= max_keywords:
+                break
+            seen_lower.add(name.lower())
+            merged.append(name)
+        return merged
+
     def _parse_image_result(self, result: AnalyzeResult) -> ImageAnalysisResult:
         """Map an ``AnalyzeResult`` to our ``ImageAnalysisResult`` model."""
         contents = result.contents
@@ -257,6 +316,10 @@ class AzureContentUnderstandingService:
         description = self._extract_field(fields, "Description") or markdown[:500]
         caption = self._extract_field(fields, "Caption") or description[:200]
         keywords = self._extract_keywords(fields, markdown)
+
+        # Extract identified persons and merge into keywords (CEL-4 through CEL-11)
+        persons = self._extract_persons(fields)
+        keywords = self._merge_persons_into_keywords(keywords, persons)
 
         return ImageAnalysisResult(
             description=description,

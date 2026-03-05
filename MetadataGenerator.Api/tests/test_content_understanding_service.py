@@ -37,6 +37,7 @@ def _make_media_content(
     summary: str | None = None,
     caption: str | None = None,
     keywords: list[str] | None = None,
+    persons: list[str] | None = None,
 ) -> MagicMock:
     """Build a mock ``MediaContent`` returned by the SDK."""
     fields: dict[str, Any] = {
@@ -48,6 +49,8 @@ def _make_media_content(
         fields["Caption"] = _make_content_field(caption)
     if keywords is not None:
         fields["Keywords"] = _make_content_field(keywords)
+    if persons is not None:
+        fields["Persons"] = _make_content_field(persons)
 
     content = MagicMock()
     content.markdown = markdown
@@ -344,6 +347,357 @@ class TestRetryLogic:
 
         # Should have been called only once (no retries)
         assert mock_client.begin_analyze_binary.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Person extraction and keyword merging tests
+# ---------------------------------------------------------------------------
+
+
+class TestPersonExtraction:
+    """Tests for _extract_persons() and _merge_persons_into_keywords()."""
+
+    @pytest.mark.asyncio
+    async def test_persons_field_with_celebrity_adds_to_keywords(self) -> None:
+        """CEL-4/CEL-8: Person names from Persons field appear in keywords."""
+        content = _make_media_content(
+            description="Angela Merkel auf einer Pressekonferenz",
+            caption="Angela Merkel spricht",
+            keywords=["Politik", "Pressekonferenz", "Deutschland"],
+            persons=["Angela Merkel"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert "Angela Merkel" in result.keywords
+        # Subject-matter keywords are still present
+        assert "Politik" in result.keywords
+        assert "Pressekonferenz" in result.keywords
+
+    @pytest.mark.asyncio
+    async def test_multiple_persons_added_to_keywords(self) -> None:
+        """Multiple person names are all added to keywords."""
+        content = _make_media_content(
+            description="Foto",
+            caption="Foto",
+            keywords=["Sport", "Tennis", "Fußball"],
+            persons=["Rafael Nadal", "Thomas Müller"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert "Rafael Nadal" in result.keywords
+        assert "Thomas Müller" in result.keywords
+
+    @pytest.mark.asyncio
+    async def test_empty_persons_field_leaves_keywords_unchanged(self) -> None:
+        """CEL-7: Empty Persons field does not affect keywords."""
+        content = _make_media_content(
+            description="Landschaft",
+            caption="Berge",
+            keywords=["Berge", "Natur", "Landschaft"],
+            persons=[],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert result.keywords == ["Berge", "Natur", "Landschaft"]
+
+    @pytest.mark.asyncio
+    async def test_missing_persons_field_leaves_keywords_unchanged(self) -> None:
+        """CEL-7: Missing Persons field causes no error and no change."""
+        content = _make_media_content(
+            description="Landschaft",
+            caption="Berge",
+            keywords=["Berge", "Natur", "Landschaft"],
+            # No persons parameter → no Persons field in result
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert result.keywords == ["Berge", "Natur", "Landschaft"]
+
+    @pytest.mark.asyncio
+    async def test_duplicate_person_in_keywords_not_added_twice(self) -> None:
+        """CEL-11: Person name already in keywords is not duplicated."""
+        content = _make_media_content(
+            description="Merkel",
+            caption="Merkel",
+            keywords=["Politik", "Angela Merkel", "Deutschland"],
+            persons=["Angela Merkel"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert result.keywords.count("Angela Merkel") == 1
+
+    @pytest.mark.asyncio
+    async def test_case_insensitive_deduplication(self) -> None:
+        """CEL-11: Case-insensitive dedup prevents duplicates."""
+        content = _make_media_content(
+            description="Foto",
+            caption="Foto",
+            keywords=["Politik", "angela merkel", "Bundestag"],
+            persons=["Angela Merkel"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        merkel_count = sum(1 for k in result.keywords if k.lower() == "angela merkel")
+        assert merkel_count == 1
+
+    @pytest.mark.asyncio
+    async def test_placeholder_values_filtered_out(self) -> None:
+        """CEL-6: Placeholder person names are not included."""
+        content = _make_media_content(
+            description="Foto",
+            caption="Foto",
+            keywords=["Gebäude", "Architektur", "Stadt"],
+            persons=["Unknown person", "Unbekannte Person", "Mann", "Frau"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        # None of the placeholders should appear
+        for kw in result.keywords:
+            assert kw.lower() not in {
+                "unknown person", "unbekannte person", "mann", "frau",
+            }
+
+    @pytest.mark.asyncio
+    async def test_markdown_artifacts_in_persons_filtered(self) -> None:
+        """Person names with markdown artifact characters are discarded."""
+        content = _make_media_content(
+            description="Foto",
+            caption="Foto",
+            keywords=["Sport", "Tennis", "Turnier"],
+            persons=["[Angela Merkel](link)", "Valid Person"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert "Valid Person" in result.keywords
+        assert "[Angela Merkel](link)" not in result.keywords
+
+    @pytest.mark.asyncio
+    async def test_keywords_do_not_exceed_15_with_persons(self) -> None:
+        """Combined keywords list must not exceed 15 entries."""
+        content = _make_media_content(
+            description="Foto",
+            caption="Foto",
+            keywords=[f"Keyword{i}" for i in range(14)],
+            persons=["Person A", "Person B", "Person C"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert len(result.keywords) <= 15
+        # All 14 subject-matter keywords preserved
+        assert all(f"Keyword{i}" in result.keywords for i in range(14))
+        # Only 1 person name fits
+        assert "Person A" in result.keywords
+
+    @pytest.mark.asyncio
+    async def test_persons_appended_after_subject_keywords(self) -> None:
+        """Person names appear after subject-matter keywords."""
+        content = _make_media_content(
+            description="Foto",
+            caption="Foto",
+            keywords=["Politik", "Bundestag", "Berlin"],
+            persons=["Angela Merkel"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        # Person name should be at the end
+        idx_politik = result.keywords.index("Politik")
+        idx_merkel = result.keywords.index("Angela Merkel")
+        assert idx_merkel > idx_politik
+
+    @pytest.mark.asyncio
+    async def test_whitespace_only_persons_discarded(self) -> None:
+        """Empty and whitespace-only person entries are ignored."""
+        content = _make_media_content(
+            description="Foto",
+            caption="Foto",
+            keywords=["Sport", "Tennis", "Turnier"],
+            persons=["", "  ", "Rafael Nadal"],
+        )
+        analyze_result = _make_analyze_result([content])
+
+        service = _build_service()
+        mock_poller = AsyncMock()
+        mock_poller.result.return_value = analyze_result
+
+        mock_client = AsyncMock()
+        mock_client.begin_analyze_binary.return_value = mock_poller
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch.object(service, "_create_client", return_value=mock_client):
+            result = await service.analyze_image(b"data", "image/jpeg")
+
+        assert "Rafael Nadal" in result.keywords
+        assert "" not in result.keywords
+        assert "  " not in result.keywords
+
+
+class TestPersonExtractionUnit:
+    """Direct unit tests for _extract_persons and _merge_persons_into_keywords."""
+
+    def test_extract_persons_from_none_fields(self) -> None:
+        result = AzureContentUnderstandingService._extract_persons(None)
+        assert result == []
+
+    def test_extract_persons_from_empty_fields(self) -> None:
+        result = AzureContentUnderstandingService._extract_persons({})
+        assert result == []
+
+    def test_extract_persons_with_valid_names(self) -> None:
+        fields = {"Persons": _make_content_field(["Angela Merkel", "Olaf Scholz"])}
+        result = AzureContentUnderstandingService._extract_persons(fields)
+        assert result == ["Angela Merkel", "Olaf Scholz"]
+
+    def test_extract_persons_filters_placeholders(self) -> None:
+        fields = {"Persons": _make_content_field(["Unknown", "Angela Merkel", "Person"])}
+        result = AzureContentUnderstandingService._extract_persons(fields)
+        assert result == ["Angela Merkel"]
+
+    def test_extract_persons_filters_markdown_artifacts(self) -> None:
+        fields = {"Persons": _make_content_field(["[Name](url)", "Valid Name"])}
+        result = AzureContentUnderstandingService._extract_persons(fields)
+        assert result == ["Valid Name"]
+
+    def test_merge_persons_basic(self) -> None:
+        result = AzureContentUnderstandingService._merge_persons_into_keywords(
+            ["A", "B"], ["C"]
+        )
+        assert result == ["A", "B", "C"]
+
+    def test_merge_persons_dedup_case_insensitive(self) -> None:
+        result = AzureContentUnderstandingService._merge_persons_into_keywords(
+            ["angela merkel", "B"], ["Angela Merkel"]
+        )
+        assert len(result) == 2
+        assert result == ["angela merkel", "B"]
+
+    def test_merge_persons_respects_max(self) -> None:
+        keywords = [f"K{i}" for i in range(15)]
+        result = AzureContentUnderstandingService._merge_persons_into_keywords(
+            keywords, ["Extra"]
+        )
+        assert len(result) == 15
+        assert "Extra" not in result
 
 
 # ---------------------------------------------------------------------------

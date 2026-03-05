@@ -54,8 +54,8 @@ Analyze a single image and extract metadata.
   "file_size": 2048576,
   "mime_type": "image/jpeg",
   "description": "Ein Tennisspieler schlägt ...",
-  "keywords": ["Tennis", "Sport", "Rasen"],
-  "caption": "Tennisspieler bei den French Open.",
+  "keywords": ["Tennis", "Sport", "Rasen", "Rafael Nadal"],
+  "caption": "Rafael Nadal bei den French Open.",
   "exif": { "camera_model": "Canon EOS R5", "date_taken": "2025-06-15" },
   "processing_time_ms": 3200
 }

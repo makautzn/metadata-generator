@@ -44,7 +44,7 @@ metadata-generator/
 │   │   ├── routers/            # API endpoints (image, audio, batch, webhook, health)
 │   │   ├── services/           # Azure Content Understanding service layer
 │   │   └── utils/              # File validation, EXIF extraction, audio utils
-│   └── tests/                  # pytest suite (118 tests)
+│   └── tests/                  # pytest suite (137 tests)
 ├── MetadataGenerator.Web/       # Frontend (Next.js)
 │   └── src/
 │       ├── app/                # Pages, layouts & API proxy route handler

@@ -16,8 +16,13 @@ Before any code runs, two custom analyzers must exist in the Azure Content Under
 
 | Analyzer ID | Base Analyzer | Completion Model | Purpose |
 |---|---|---|---|
-| `imageMetadataExtractor` | `prebuilt-image` | `gpt-4.1-mini` | Extracts Description, Caption, and Keywords from images |
+| `imageMetadataExtractor` | `prebuilt-image` | `gpt-4.1-mini` | Extracts Description, Caption, Keywords, and Persons from images |
 | `audioMetadataExtractor` | `prebuilt-audio` | `gpt-4.1-mini` | Extracts Description, Summary, and Keywords from audio |
+
+The `imageMetadataExtractor` analyzer has `config.disable_face_blurring = true` to enable face processing and celebrity/person identification. The **Persons** field instructs the model to identify recognizable public figures and return their commonly used names. The Description and Caption field prompts also instruct the model to name identified persons.
+
+!!! warning "Limited Access Feature"
+    The `disable_face_blurring` parameter is an **Azure Limited Access** feature. Until the subscription is approved via the [Face Recognition intake form](https://aka.ms/facerecognition), the API rejects this parameter with `InvalidParameter`. The analyzer is currently deployed **without** `disable_face_blurring`, which means faces are pixelated and celebrity identification is unreliable. Re-run `scripts/update_image_analyzer.py` after approval to enable it.
 
 Both analyzers are created on API version **`2025-11-01`** and use camelCase IDs (hyphenated names are rejected by this API version). Each analyzer defines custom field prompts that instruct the model to produce output **in German**.
 
@@ -87,8 +92,19 @@ The `AnalyzeResult` contains a list of `contents`, each with a `fields` dictiona
 | **Description** | `fields["Description"].value` | First 500 characters of the result's markdown |
 | **Caption** | `fields["Caption"].value` | First 200 characters of the description |
 | **Keywords** | Each item in `fields["Keywords"].value` list → `item.value` (plain string) | Salient words parsed from the markdown; ultimate fallback: `["Allgemein", "Inhalt", "Medium"]` |
+| **Persons** | Each item in `fields["Persons"].value` list → `item.value` (plain string) | Empty list (no error) |
 
 Keywords containing markdown artifact characters (`[]`, `()`, `#`, `|`, `/`) are filtered out.
+
+#### Person Name Extraction & Keyword Merging
+
+After extracting Keywords and Persons separately, the service merges identified person names into the keywords list:
+
+1. **Placeholder filtering** — Names matching common placeholders ("Unknown person", "Mann", "Frau", etc.) are discarded.
+2. **Markdown artifact filtering** — Names containing `[]`, `()`, `#`, `|`, `/` are discarded.
+3. **Case-insensitive deduplication** — If a person name already appears in the keywords (ignoring case), it is not added again.
+4. **Append after subject keywords** — Person names are added at the end of the keywords list.
+5. **Cap at 15** — The combined list never exceeds 15 entries; subject-matter keywords take priority.
 
 ### Step 6 — Response Assembly
 
@@ -263,3 +279,6 @@ The service is instantiated via `get_content_understanding_service()` in `app/co
 | 4 | Audio summary was a full paragraph instead of one sentence. | Updated analyzer prompt + added `_truncate_to_first_sentence()` server-side safeguard. |
 | 5 | `min_length=3` on keywords too strict for simple content. | Relaxed to `min_length=1`. |
 | 6 | Markdown artifacts (`[]`, `#`, `|`) appeared in keyword lists. | Added filter in `_extract_keywords()` to discard tainted entries. |
+| 7 | Celebrity identification requires `disable_face_blurring = true` at analyzer level (not per-request). **This is a Limited Access feature** — the API rejects `disableFaceBlurring` with `InvalidParameter` until the subscription is approved via [Face Recognition intake form](https://aka.ms/facerecognition). | Set on `ContentAnalyzerConfig` via `begin_create_analyzer(allow_replace=True)`. Script: `scripts/update_image_analyzer.py`. Currently deployed WITHOUT this flag. |
+| 8 | Person names needed in Description/Caption, not just Keywords. | Updated analyzer field prompts to instruct the model to name recognized public figures in all output fields. |
+| 9 | Analyzer management operations (create/update) require Entra ID auth (`DefaultAzureCredential`). API key auth returns HTTP 401. | Use `DefaultAzureCredential` for management; API key for analysis only. |

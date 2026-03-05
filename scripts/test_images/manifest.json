@@ -1,0 +1,33 @@
+{
+    "_comment": "Test manifest for celebrity identification PoC validation (task 016). Add your test images to this directory and update this manifest with expected persons per image.",
+    "example_single_celebrity.jpg": {
+        "category": "single_celebrity",
+        "expected_persons": ["Angela Merkel"],
+        "has_non_public": false,
+        "notes": "Replace with actual test image"
+    },
+    "example_multiple_celebrities.jpg": {
+        "category": "multiple_celebrities",
+        "expected_persons": ["Person A", "Person B"],
+        "has_non_public": false,
+        "notes": "Replace with actual test image of two known public figures"
+    },
+    "example_no_people.jpg": {
+        "category": "no_people",
+        "expected_persons": [],
+        "has_non_public": false,
+        "notes": "Replace with a landscape or object image"
+    },
+    "example_non_public_only.jpg": {
+        "category": "non_public_only",
+        "expected_persons": [],
+        "has_non_public": true,
+        "notes": "Replace with an image of non-public individuals"
+    },
+    "example_mixed.jpg": {
+        "category": "mixed_celebrity_non_public",
+        "expected_persons": ["Celebrity Name"],
+        "has_non_public": true,
+        "notes": "Replace with an image containing both a celebrity and non-public individuals"
+    }
+}
