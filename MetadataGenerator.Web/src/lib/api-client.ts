@@ -5,7 +5,7 @@
  * NEXT_PUBLIC_API_URL environment variable.
  */
 
-import type { ApiError, ApiResult } from './types';
+import type { ApiError, ApiResult, AudioJobStatusResponse } from './types';
 
 /** Base URL for all API requests — configurable via env */
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1';
@@ -133,4 +133,38 @@ export async function uploadFile<T>(path: string, formData: FormData): Promise<A
       },
     };
   }
+}
+
+/**
+ * Poll an audio analysis job until it completes or fails.
+ *
+ * @param jobId        - Job ID returned from /analyze/audio/submit
+ * @param intervalMs   - Poll interval in milliseconds (default 5000)
+ * @param maxAttempts  - Maximum poll attempts before giving up (default 360 = 30 min at 5s)
+ */
+export async function pollAudioJob(
+  jobId: string,
+  intervalMs = 5_000,
+  maxAttempts = 360,
+): Promise<ApiResult<AudioJobStatusResponse>> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const result = await get<AudioJobStatusResponse>(`/analyze/audio/status/${jobId}`);
+
+    if (!result.ok) return result;
+
+    if (result.data.status === 'completed' || result.data.status === 'failed') {
+      return result;
+    }
+
+    // Still processing — wait before next poll
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  return {
+    ok: false,
+    error: {
+      error_code: 'POLL_TIMEOUT',
+      message: 'Audio analysis did not complete within the expected time',
+    },
+  };
 }

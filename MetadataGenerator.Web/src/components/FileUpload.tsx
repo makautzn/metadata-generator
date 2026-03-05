@@ -8,8 +8,8 @@
 
 import { type DragEvent, useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { uploadFile } from '@/lib/api-client';
-import type { BatchAnalysisResponse } from '@/lib/types';
+import { uploadFile, pollAudioJob } from '@/lib/api-client';
+import type { AudioJobSubmitResponse, AudioMetadataResponse, ImageMetadataResponse } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -54,13 +54,23 @@ export interface SelectedFile {
   error: string | null;
 }
 
+/** Result for a single file analysis */
+export interface SingleFileResult {
+  fileId: string;
+  fileIndex: number;
+  status: 'success' | 'error';
+  fileType: 'image' | 'audio';
+  metadata: ImageMetadataResponse | AudioMetadataResponse | null;
+  error: string | null;
+}
+
 export interface FileUploadProps {
-  /** Called with batch results once upload completes */
-  onResults?: (results: BatchAnalysisResponse) => void;
-  /** Called when an upload error occurs */
-  onError?: (message: string) => void;
   /** Called when upload starts, with the list of valid files submitted */
   onUploadStart?: (files: SelectedFile[]) => void;
+  /** Called when a single file completes (success or error) */
+  onFileResult?: (result: SingleFileResult) => void;
+  /** Called when all files have finished processing */
+  onAllComplete?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +99,7 @@ let _fileCounter = 0;
 // Component
 // ---------------------------------------------------------------------------
 
-export function FileUpload({ onResults, onError, onUploadStart }: FileUploadProps) {
+export function FileUpload({ onUploadStart, onFileResult, onAllComplete }: FileUploadProps) {
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -158,21 +168,78 @@ export function FileUpload({ onResults, onError, onUploadStart }: FileUploadProp
     setUploading(true);
     onUploadStart?.(validFiles);
 
-    const formData = new FormData();
-    for (const sf of validFiles) {
-      formData.append('files', sf.file);
-    }
+    // Process files sequentially to avoid overwhelming the backend
+    for (let i = 0; i < validFiles.length; i++) {
+      const sf = validFiles[i];
+      const isImage = IMAGE_TYPES.has(sf.file.type);
+      const fileType = isImage ? 'image' : 'audio';
 
-    const result = await uploadFile<BatchAnalysisResponse>('/analyze/batch', formData);
+      const formData = new FormData();
+      formData.append('file', sf.file);
+
+      if (isImage) {
+        // Images: synchronous single-file upload
+        const result = await uploadFile<ImageMetadataResponse>('/analyze/image', formData);
+        onFileResult?.({
+          fileId: sf.id,
+          fileIndex: i,
+          status: result.ok ? 'success' : 'error',
+          fileType: 'image',
+          metadata: result.ok ? result.data : null,
+          error: result.ok ? null : result.error.message,
+        });
+      } else {
+        // Audio: async submit + poll (avoids proxy timeout for long analysis)
+        const submitResult = await uploadFile<AudioJobSubmitResponse>(
+          '/analyze/audio/submit',
+          formData,
+        );
+
+        if (!submitResult.ok) {
+          onFileResult?.({
+            fileId: sf.id,
+            fileIndex: i,
+            status: 'error',
+            fileType: 'audio',
+            metadata: null,
+            error: submitResult.error.message,
+          });
+          continue;
+        }
+
+        const pollResult = await pollAudioJob(submitResult.data.job_id);
+
+        if (pollResult.ok && pollResult.data.status === 'completed' && pollResult.data.result) {
+          onFileResult?.({
+            fileId: sf.id,
+            fileIndex: i,
+            status: 'success',
+            fileType: 'audio',
+            metadata: pollResult.data.result,
+            error: null,
+          });
+        } else {
+          const errorMsg =
+            pollResult.ok && pollResult.data.error
+              ? pollResult.data.error
+              : !pollResult.ok
+                ? pollResult.error.message
+                : 'Audio analysis failed';
+          onFileResult?.({
+            fileId: sf.id,
+            fileIndex: i,
+            status: 'error',
+            fileType: 'audio',
+            metadata: null,
+            error: errorMsg,
+          });
+        }
+      }
+    }
 
     setUploading(false);
-
-    if (result.ok) {
-      onResults?.(result.data);
-    } else {
-      onError?.(result.error.message);
-    }
-  }, [canUpload, validFiles, onResults, onError, onUploadStart]);
+    onAllComplete?.();
+  }, [canUpload, validFiles, onUploadStart, onFileResult, onAllComplete]);
 
   // -- Render --------------------------------------------------------------
 

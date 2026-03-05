@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
-import type { SelectedFile } from '@/components/FileUpload';
+import type { SelectedFile, SingleFileResult } from '@/components/FileUpload';
 import { ImageTile } from '@/components/ImageTile';
 import { AudioTile } from '@/components/AudioTile';
 import { ExportButtons } from '@/components/ExportButtons';
@@ -16,7 +16,6 @@ import { ProgressList } from '@/components/ProgressList';
 import { TileGrid } from '@/components/TileGrid';
 import type {
   AudioMetadataResponse,
-  BatchAnalysisResponse,
   ImageMetadataResponse,
   ProcessingFile,
 } from '@/lib/types';
@@ -83,40 +82,34 @@ export function MetadataWorkspace() {
     setPhase('processing');
   }, []);
 
-  // -- Results received: map API response to processing files ---------------
-  const handleResults = useCallback((response: BatchAnalysisResponse) => {
-    setProcessingFiles((prev) => {
-      return prev.map((pf) => {
-        const result = response.results.find((r) => r.file_index === pf.fileIndex);
-        if (!result) return { ...pf, status: 'error' as const, error: 'Kein Ergebnis erhalten' };
+  // -- Single file result received: update that file's entry -----------------
+  const handleFileResult = useCallback((result: SingleFileResult) => {
+    setProcessingFiles((prev) =>
+      prev.map((pf) => {
+        if (pf.fileIndex !== result.fileIndex) return pf;
 
-        if (result.status === 'success') {
+        if (result.status === 'success' && result.metadata) {
           return {
             ...pf,
             status: 'success' as const,
             metadata: result.metadata,
-            fileType: result.file_type,
-            processingTimeMs: result.metadata?.processing_time_ms ?? null,
+            fileType: result.fileType,
+            processingTimeMs: result.metadata.processing_time_ms ?? null,
           };
         }
 
         return {
           ...pf,
           status: 'error' as const,
-          error: result.error?.detail ?? 'Verarbeitung fehlgeschlagen',
-          fileType: result.file_type,
+          error: result.error ?? 'Verarbeitung fehlgeschlagen',
+          fileType: result.fileType,
         };
-      });
-    });
-    setPhase('done');
+      }),
+    );
   }, []);
 
-  // -- Global upload error --------------------------------------------------
-  const handleError = useCallback((message: string) => {
-    setGlobalError(message);
-    setProcessingFiles((prev) =>
-      prev.map((pf) => ({ ...pf, status: 'error' as const, error: message })),
-    );
+  // -- All files done -------------------------------------------------------
+  const handleAllComplete = useCallback(() => {
     setPhase('done');
   }, []);
 
@@ -160,8 +153,8 @@ export function MetadataWorkspace() {
       {phase === 'idle' && (
         <FileUpload
           onUploadStart={handleUploadStart}
-          onResults={handleResults}
-          onError={handleError}
+          onFileResult={handleFileResult}
+          onAllComplete={handleAllComplete}
         />
       )}
 

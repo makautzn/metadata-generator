@@ -90,3 +90,36 @@ The following issues were identified and resolved during end-to-end testing (202
 |---------|------------|
 | Maximum audio duration of 10 minutes was too short for real editorial audio clips. | Extended `MAX_AUDIO_DURATION_SECONDS` from 600 to 900 (15 minutes). Updated test mock values from 700 s to 1000 s. |
 | Audio one-sentence summary was returning a full paragraph. | Updated Azure `audioMetadataExtractor` analyzer prompt to enforce "exactly ONE sentence, max 30 words". Added backend `_truncate_to_first_sentence()` safeguard that splits on sentence-ending punctuation. |
+
+---
+
+## Async Submit + Poll Architecture (Added 2026-03-05)
+
+Audio analysis on Azure Content Understanding can take 10–20+ minutes for files near the 15-minute duration limit. This exceeds any practical proxy timeout, so the backend now provides two additional endpoints:
+
+| Endpoint | Method | Purpose |
+|----------|--------|----------|
+| `/api/v1/analyze/audio/submit` | POST | Accepts the audio file, validates it, starts a background task, returns `{job_id}` (HTTP 202) |
+| `/api/v1/analyze/audio/status/{job_id}` | GET | Returns current job status (`processing`, `completed`, `failed`) with result or error |
+
+### Key details
+
+- Background task runs via `asyncio.create_task()` in the FastAPI process.
+- In-memory job store (`_jobs` dict) with 30-minute TTL — sufficient for single-process PoC.
+- The SDK `polling_interval` is set to **5 seconds** (overriding the default 30 s) to detect completion faster.
+- The frontend polls every 5 seconds for up to 30 minutes (360 attempts).
+- The synchronous `POST /api/v1/analyze/audio` endpoint is kept for backwards compatibility / direct API use.
+
+### New response models
+
+```
+AudioJobSubmitResponse:
+  job_id: str
+  status: "accepted"
+
+AudioJobStatusResponse:
+  job_id: str
+  status: "processing" | "completed" | "failed"
+  result: AudioMetadataResponse | null
+  error: str | null
+```

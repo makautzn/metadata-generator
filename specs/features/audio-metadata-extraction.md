@@ -70,3 +70,6 @@ The following issues were identified and resolved during end-to-end testing (202
 | Audio tile displayed summary above description; users expected long description on top, short summary below. | Swapped order in `AudioTile` component: description first, summary second. |
 | `min_length=3` on `keywords` field was too strict — Azure sometimes returns fewer. | Relaxed `min_length` from 3 to 1 in both `ImageAnalysisResult` and `AudioAnalysisResult`. |
 | `aiohttp` not listed as a dependency but required at runtime by the Azure SDK. | Added `aiohttp` to `pyproject.toml` dependencies. |
+| Gateway Timeout (504) from the frontend proxy when audio analysis exceeded timeout limits. Batch uploads containing audio could take 10–20+ minutes. | Implemented **async submit + poll** pattern: `POST /analyze/audio/submit` returns `{job_id}` (202); frontend polls `GET /analyze/audio/status/{job_id}` every 5 s. In-memory job store with 30 min TTL. |
+| Node.js `fetch` (undici) has a hidden `headersTimeout` of 300 s that fires before `AbortController`. | Added `undici.Agent` with `headersTimeout: 600_000` and `bodyTimeout: 600_000` in Route Handler proxy. |
+| SDK default polling interval (30 s) delayed completion detection by up to 30 s. | Overrode `polling_interval=5` on `begin_analyze_binary()` calls. |

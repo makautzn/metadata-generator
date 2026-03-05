@@ -34,8 +34,8 @@ graph TB
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **MetadataGenerator.Api** | Python 3.12, FastAPI | Backend API — file processing, AI integration, webhook |
-| **MetadataGenerator.Web** | Next.js 16, React 19, TypeScript | Frontend SPA — upload UI, metadata display, export |
+| **MetadataGenerator.Api** | Python 3.12, FastAPI | Backend API — file processing, AI integration, webhook (137 tests, 88% coverage) |
+| **MetadataGenerator.Web** | Next.js 16, React 19, TypeScript | Frontend SPA — upload UI, metadata display, export (131 tests) |
 | **Azure Content Understanding** | Azure AI | Image and audio analysis — generates descriptions, keywords, captions |
 
 ## Design Principles
@@ -43,4 +43,5 @@ graph TB
 - **Separation of concerns**: Frontend handles presentation, backend handles business logic and AI integration.
 - **Type-safe contracts**: Pydantic models (backend) and TypeScript interfaces (frontend) enforce API contracts.
 - **Modular services**: Azure integration is wrapped in an injectable service layer for testability.
+- **Progressive results**: Frontend uploads files one at a time with per-file result display, using async submit+poll for long-running audio analysis.
 - **German output**: All AI-generated metadata is configured for German language output.

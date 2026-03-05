@@ -88,3 +88,4 @@ The following issues were identified and resolved during end-to-end testing (202
 | Keywords array field: each element in `ContentField.value` is itself a `ContentField` object. `str(k)` produces the dict repr (`{'type': 'string', 'valueString': '...'}`). | Keyword extraction now reads `k.value` (the inner string) via `getattr(k, "value", k)`. |
 | `min_length=3` on keywords was too strict — Azure sometimes returns fewer keywords for simple content. | Relaxed to `min_length=1` in both `ImageAnalysisResult` and `AudioAnalysisResult`. |
 | Markdown-based keyword fallback captured artifacts like `image](pages/1`. | Added filter to exclude tokens containing `[]()#\|/` characters. |
+| SDK default polling interval (30 s) delayed completion detection by up to 30 s. | Overrode `polling_interval=5` on `begin_analyze_binary()` calls (2026-03-05). |

@@ -70,3 +70,15 @@ A single-page web application that serves as the user-facing front end for the P
 - **Is there a preference for the order of tiles?** — Tiles are displayed in **upload order**.
 - **Should processed results be exportable?** — Yes, results must be exportable as **CSV** and **JSON**.
 - **Should there be a "re-process" or "retry" action per file?** — No, not required for the PoC.
+
+---
+
+## 5. E2E Testing Findings
+
+The following issues were identified and resolved during end-to-end testing (2026-03-05):
+
+| Finding | Resolution |
+|---------|------------|
+| Batch upload of mixed files (images + audio) caused Gateway Timeout (504) because audio analysis can take 10–20+ minutes on Azure CU, far exceeding the proxy timeout. | Refactored frontend from single batch upload (`POST /analyze/batch`) to **per-file sequential uploads**. Images use `POST /analyze/image`; audio uses async submit + poll (`POST /analyze/audio/submit` → poll `GET /analyze/audio/status/{job_id}`). Results displayed progressively as each file completes. |
+| Node.js built-in `fetch` (undici) has a default `headersTimeout` of 300 s that fired before `AbortController`, causing `UND_ERR_HEADERS_TIMEOUT` (502 Bad Gateway). | Added explicit `undici.Agent` with `headersTimeout: 600_000` and `bodyTimeout: 600_000` as `dispatcher` option in the Route Handler proxy. Added `undici@7.22.0` as explicit dependency. |
+| Even 600 s proxy timeout was insufficient for long audio files. | Implemented async submit + poll for audio: `POST /analyze/audio/submit` returns immediately (202); frontend polls every 5 s with no fixed ceiling (up to 30 min). |

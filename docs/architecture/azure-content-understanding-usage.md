@@ -80,6 +80,7 @@ The router calls `cu_service.analyze_image(file_bytes, detected_mime)`, which tr
    - `analyzer_id = "imageMetadataExtractor"`
    - `binary_input = <raw image bytes>`
    - `content_type = <detected MIME type>`
+   - `polling_interval = 5` (seconds; SDK default is 30 s)
 3. This returns an async **poller**. The service awaits `poller.result()` to obtain the `AnalyzeResult`.
 4. If a transient error occurs (HTTP 429 or 503), the service retries up to 3 times with exponential back-off (1 s → 2 s → 4 s).
 
@@ -129,7 +130,12 @@ The router combines the AI-generated metadata with the locally extracted EXIF da
 
 ### Step 1 — User Uploads an Audio File
 
-The user sends a `POST` request to `/api/v1/analyze/audio` with a multipart file upload. Supported formats: **MP3, WAV, M4A, OGG** (max **15 minutes** duration).
+The frontend uses an **async submit + poll** pattern for audio files to avoid proxy timeouts:
+
+1. `POST /api/v1/analyze/audio/submit` — accepts the file, validates it, starts a background analysis task, and returns a `job_id` (HTTP 202) within seconds.
+2. The frontend polls `GET /api/v1/analyze/audio/status/{job_id}` every 5 seconds until the status is `completed` or `failed`.
+
+A synchronous endpoint (`POST /api/v1/analyze/audio`) is also available for direct API consumers. Supported formats: **MP3, WAV, M4A, OGG** (max **15 minutes** duration).
 
 ### Step 2 — File Validation
 
@@ -149,8 +155,12 @@ The router calls `cu_service.analyze_audio(file_bytes, mime_type)`, which follow
    - `analyzer_id = "audioMetadataExtractor"`
    - `binary_input = <raw audio bytes>`
    - `content_type = <detected MIME type>`
+   - `polling_interval = 5` (seconds; SDK default is 30 s)
 3. Awaits the poller result.
 4. Retries transient errors with exponential back-off.
+
+!!! info "Audio Processing Time"
+    Audio analysis typically takes significantly longer than image analysis. The `prebuilt-audio` base analyzer transcribes the audio before running the completion model. Files close to the 15-minute limit can take 10–20+ minutes to process. The async submit + poll pattern ensures the frontend never times out waiting.
 
 ### Step 4 — Parsing the Azure Response
 
@@ -282,3 +292,6 @@ The service is instantiated via `get_content_understanding_service()` in `app/co
 | 7 | Celebrity identification requires `disable_face_blurring = true` at analyzer level (not per-request). **This is a Limited Access feature** — the API rejects `disableFaceBlurring` with `InvalidParameter` until the subscription is approved via [Face Recognition intake form](https://aka.ms/facerecognition). | Set on `ContentAnalyzerConfig` via `begin_create_analyzer(allow_replace=True)`. Script: `scripts/update_image_analyzer.py`. Currently deployed WITHOUT this flag. |
 | 8 | Person names needed in Description/Caption, not just Keywords. | Updated analyzer field prompts to instruct the model to name recognized public figures in all output fields. |
 | 9 | Analyzer management operations (create/update) require Entra ID auth (`DefaultAzureCredential`). API key auth returns HTTP 401. | Use `DefaultAzureCredential` for management; API key for analysis only. |
+| 10 | Batch upload of mixed image + audio files caused Gateway Timeout (504) because audio analysis can take 10–20+ minutes — far exceeding the proxy timeout. | Refactored frontend from batch upload to **per-file sequential uploads**. Images use synchronous `POST /analyze/image`; audio uses **async submit + poll** (`POST /analyze/audio/submit` → poll `GET /analyze/audio/status/{job_id}`). |
+| 11 | Node.js built-in `fetch` (undici) has a default `headersTimeout` of 300 s that fires before the `AbortController` timeout, causing `UND_ERR_HEADERS_TIMEOUT` (502 Bad Gateway). | Added explicit `undici.Agent` with `headersTimeout: 600_000` and `bodyTimeout: 600_000` as `dispatcher` option on `fetch`. |
+| 12 | SDK default polling interval (30 s) added up to 30 s of unnecessary latency after Azure CU completed analysis. | Overrode `polling_interval=5` on `begin_analyze_binary()` calls. |

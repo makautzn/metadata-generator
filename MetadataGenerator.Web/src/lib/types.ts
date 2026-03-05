@@ -80,6 +80,20 @@ export interface AudioMetadataResponse {
   processing_time_ms: number;
 }
 
+/** Response from the async audio submit endpoint */
+export interface AudioJobSubmitResponse {
+  job_id: string;
+  status: 'accepted';
+}
+
+/** Response from the async audio status poll endpoint */
+export interface AudioJobStatusResponse {
+  job_id: string;
+  status: 'processing' | 'completed' | 'failed';
+  result: AudioMetadataResponse | null;
+  error: string | null;
+}
+
 /** Error details within a batch result */
 export interface BatchErrorDetail {
   detail: string;

@@ -5,7 +5,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MetadataWorkspace } from '@/components/MetadataWorkspace';
-import type { BatchAnalysisResponse } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Mock api-client
@@ -27,65 +26,28 @@ function createImageFile(name: string = 'photo.jpg', size: number = 1024): File 
   return file;
 }
 
-function makeSuccessResponse(fileNames: string[]): BatchAnalysisResponse {
+/** Creates a successful single-file API response */
+function makeFileSuccess(name: string) {
   return {
-    results: fileNames.map((name, i) => ({
+    ok: true as const,
+    data: {
       file_name: name,
-      file_index: i,
-      status: 'success' as const,
-      file_type: name.endsWith('.mp3') ? ('audio' as const) : ('image' as const),
-      metadata: {
-        file_name: name,
-        file_size: 1024,
-        mime_type: 'image/jpeg',
-        description: `Description of ${name}`,
-        keywords: ['test'],
-        caption: `Caption for ${name}`,
-        exif: {},
-        processing_time_ms: 250,
-      },
-      error: null,
-    })),
-    total_files: fileNames.length,
-    successful: fileNames.length,
-    failed: 0,
-    total_processing_time_ms: 500,
+      file_size: 1024,
+      mime_type: 'image/jpeg',
+      description: `Description of ${name}`,
+      keywords: ['test'],
+      caption: `Caption for ${name}`,
+      exif: {},
+      processing_time_ms: 250,
+    },
   };
 }
 
-function makeMixedResponse(): BatchAnalysisResponse {
+/** Creates a failed single-file API response */
+function makeFileError(message: string = 'Processing failed') {
   return {
-    results: [
-      {
-        file_name: 'good.jpg',
-        file_index: 0,
-        status: 'success' as const,
-        file_type: 'image' as const,
-        metadata: {
-          file_name: 'good.jpg',
-          file_size: 1024,
-          mime_type: 'image/jpeg',
-          description: 'A photo',
-          keywords: ['photo'],
-          caption: 'A nice photo',
-          exif: {},
-          processing_time_ms: 200,
-        },
-        error: null,
-      },
-      {
-        file_name: 'bad.jpg',
-        file_index: 1,
-        status: 'error' as const,
-        file_type: 'image' as const,
-        metadata: null,
-        error: { detail: 'Processing failed', error_code: 'ANALYSIS_ERROR' },
-      },
-    ],
-    total_files: 2,
-    successful: 1,
-    failed: 1,
-    total_processing_time_ms: 300,
+    ok: false as const,
+    error: { error_code: 'ANALYSIS_ERROR', message },
   };
 }
 
@@ -138,10 +100,7 @@ describe('MetadataWorkspace', () => {
   });
 
   it('transitions to done phase with tile grid on success', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      data: makeSuccessResponse(['photo.jpg']),
-    });
+    mockUploadFile.mockResolvedValue(makeFileSuccess('photo.jpg'));
 
     render(<MetadataWorkspace />);
     const input = screen.getByTestId('file-input');
@@ -157,7 +116,10 @@ describe('MetadataWorkspace', () => {
   });
 
   it('shows error tiles for failed files in mixed response', async () => {
-    mockUploadFile.mockResolvedValue({ ok: true, data: makeMixedResponse() });
+    // First file succeeds, second fails
+    mockUploadFile
+      .mockResolvedValueOnce(makeFileSuccess('good.jpg'))
+      .mockResolvedValueOnce(makeFileError('Processing failed'));
 
     render(<MetadataWorkspace />);
     const input = screen.getByTestId('file-input');
@@ -171,10 +133,9 @@ describe('MetadataWorkspace', () => {
   });
 
   it('updates progress summary in done phase', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      data: makeSuccessResponse(['a.jpg', 'b.jpg']),
-    });
+    mockUploadFile
+      .mockResolvedValueOnce(makeFileSuccess('a.jpg'))
+      .mockResolvedValueOnce(makeFileSuccess('b.jpg'));
 
     render(<MetadataWorkspace />);
     const input = screen.getByTestId('file-input');
@@ -188,11 +149,10 @@ describe('MetadataWorkspace', () => {
     });
   });
 
-  it('shows global error banner on upload failure', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: false,
-      error: { error_code: 'SERVER_ERROR', message: 'Internal server error' },
-    });
+  it('shows error in tile on upload failure', async () => {
+    mockUploadFile.mockResolvedValue(
+      makeFileError('Internal server error'),
+    );
 
     render(<MetadataWorkspace />);
     const input = screen.getByTestId('file-input');
@@ -200,15 +160,12 @@ describe('MetadataWorkspace', () => {
     await userEvent.click(screen.getByTestId('analyze-button'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('global-error')).toHaveTextContent('Internal server error');
+      expect(screen.getByTestId('tile-error-message')).toHaveTextContent('Internal server error');
     });
   });
 
   it('allows restarting with new files via restart button', async () => {
-    mockUploadFile.mockResolvedValue({
-      ok: true,
-      data: makeSuccessResponse(['photo.jpg']),
-    });
+    mockUploadFile.mockResolvedValue(makeFileSuccess('photo.jpg'));
 
     render(<MetadataWorkspace />);
     const input = screen.getByTestId('file-input');
@@ -226,7 +183,9 @@ describe('MetadataWorkspace', () => {
   });
 
   it('state updates correctly when API response maps to files', async () => {
-    mockUploadFile.mockResolvedValue({ ok: true, data: makeMixedResponse() });
+    mockUploadFile
+      .mockResolvedValueOnce(makeFileSuccess('good.jpg'))
+      .mockResolvedValueOnce(makeFileError('Processing failed'));
 
     render(<MetadataWorkspace />);
     const input = screen.getByTestId('file-input');

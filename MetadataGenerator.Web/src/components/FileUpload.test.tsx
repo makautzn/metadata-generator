@@ -144,17 +144,21 @@ describe('FileUpload', () => {
       ok: true,
       json: () =>
         Promise.resolve({
-          results: [],
-          total_files: 0,
-          successful: 0,
-          failed: 0,
-          total_processing_time_ms: 0,
+          file_name: 'img.jpg',
+          file_size: 10240,
+          mime_type: 'image/jpeg',
+          description: 'Test',
+          keywords: ['test'],
+          caption: 'Test',
+          exif: {},
+          processing_time_ms: 100,
         }),
     });
     vi.stubGlobal('fetch', mockFetch);
 
-    const onResults = vi.fn();
-    render(<FileUpload onResults={onResults} />);
+    const onFileResult = vi.fn();
+    const onAllComplete = vi.fn();
+    render(<FileUpload onFileResult={onFileResult} onAllComplete={onAllComplete} />);
     const input = screen.getByTestId('file-input');
     selectFiles(input, [makeFile('img.jpg', 'image/jpeg')]);
     fireEvent.click(screen.getByTestId('analyze-button'));
@@ -164,7 +168,13 @@ describe('FileUpload', () => {
     });
 
     await waitFor(() => {
-      expect(onResults).toHaveBeenCalled();
+      expect(onFileResult).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success', fileType: 'image' }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(onAllComplete).toHaveBeenCalled();
     });
   });
 });

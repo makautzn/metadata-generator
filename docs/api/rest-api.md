@@ -65,7 +65,7 @@ Analyze a single image and extract metadata.
 
 ### `POST /api/v1/analyze/audio`
 
-Analyze a single audio file and extract metadata.
+Analyze a single audio file and extract metadata (synchronous). Suitable for short files or direct API use. For the web frontend, prefer the async submit + poll endpoints below.
 
 **Request**: `multipart/form-data`
 
@@ -88,11 +88,90 @@ Analyze a single audio file and extract metadata.
 }
 ```
 
+### `POST /api/v1/analyze/audio/submit`
+
+Submit an audio file for asynchronous analysis. Returns a job ID immediately (HTTP 202) — use the status endpoint to poll for results. This is the **recommended** approach for the web frontend because audio analysis can take 10–20+ minutes.
+
+**Request**: `multipart/form-data`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file` | `file` | Audio file (MP3, WAV, M4A, OGG). Max 15 minutes. |
+
+**Response** `202 Accepted`:
+
+```json
+{
+  "job_id": "cb47497598684b3d974577ba504f7aeb",
+  "status": "accepted"
+}
+```
+
+### `GET /api/v1/analyze/audio/status/{job_id}`
+
+Poll the status of an async audio analysis job.
+
+**Response** `200 OK` (processing):
+
+```json
+{
+  "job_id": "cb47497598684b3d974577ba504f7aeb",
+  "status": "processing",
+  "result": null,
+  "error": null
+}
+```
+
+**Response** `200 OK` (completed):
+
+```json
+{
+  "job_id": "cb47497598684b3d974577ba504f7aeb",
+  "status": "completed",
+  "result": {
+    "file_name": "interview.mp3",
+    "file_size": 5242880,
+    "mime_type": "audio/mpeg",
+    "description": "Ein Interview über die aktuelle Wirtschaftslage ...",
+    "keywords": ["Wirtschaft", "Interview", "Konjunktur"],
+    "summary": "Das Interview behandelt die aktuelle Konjunkturentwicklung.",
+    "duration_seconds": 342.5,
+    "processing_time_ms": 850000
+  },
+  "error": null
+}
+```
+
+**Response** `200 OK` (failed):
+
+```json
+{
+  "job_id": "cb47497598684b3d974577ba504f7aeb",
+  "status": "failed",
+  "result": null,
+  "error": "Analyse fehlgeschlagen: Azure service error"
+}
+```
+
+**Response** `404 Not Found`:
+
+```json
+{
+  "detail": "Job cb474975... not found or expired"
+}
+```
+
+!!! note "Job Expiry"
+    Completed and failed jobs are automatically removed from the in-memory store after **30 minutes**.
+
 ## Batch Analysis
 
 ### `POST /api/v1/analyze/batch`
 
 Analyze up to 20 files (images and/or audio) in a single request. Files are processed concurrently (up to 5 at a time).
+
+!!! note "Frontend uses per-file uploads"
+    The web frontend does **not** use the batch endpoint. It uploads files one at a time (images via `/analyze/image`, audio via `/analyze/audio/submit`) to avoid proxy timeouts with long-running audio analysis. The batch endpoint is available for direct API consumers.
 
 **Request**: `multipart/form-data` with multiple `files` fields.
 

@@ -61,6 +61,17 @@ Implement the file upload component that allows users to select or drag-and-drop
 - [x] "Analyze" button triggers API call with all valid files
 - [x] Upload instructional text is in German
 
+## Implementation Notes
+
+### Per-File Sequential Upload (Refactored 2026-03-05)
+
+The upload component was refactored from a single batch request (`POST /analyze/batch`) to **per-file sequential uploads** to avoid proxy timeouts when audio files take 10–20+ minutes to process:
+
+- **Images**: Uploaded one at a time via `POST /api/v1/analyze/image`. Each takes ~30 s.
+- **Audio files**: Submitted via `POST /api/v1/analyze/audio/submit` (returns `job_id`, HTTP 202), then polled via `GET /api/v1/analyze/audio/status/{job_id}` every 5 seconds until complete.
+- Results are displayed **progressively** as each file completes via the `onFileResult` callback.
+- The batch endpoint remains available for direct API consumers.
+
 ## Testing Requirements
 
 - Unit test: component renders drop zone with instructional text

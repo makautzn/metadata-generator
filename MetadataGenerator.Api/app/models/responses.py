@@ -36,6 +36,22 @@ class AudioMetadataResponse(BaseModel):
     processing_time_ms: int = Field(..., ge=0, description="Processing time in milliseconds")
 
 
+class AudioJobSubmitResponse(BaseModel):
+    """Returned immediately when an audio analysis job is submitted."""
+
+    job_id: str = Field(..., description="Unique job identifier for polling")
+    status: Literal["accepted"] = Field(default="accepted")
+
+
+class AudioJobStatusResponse(BaseModel):
+    """Status of an asynchronous audio analysis job."""
+
+    job_id: str = Field(..., description="Unique job identifier")
+    status: Literal["processing", "completed", "failed"] = Field(..., description="Job status")
+    result: AudioMetadataResponse | None = Field(default=None, description="Analysis result when completed")
+    error: str | None = Field(default=None, description="Error message when failed")
+
+
 class ErrorResponse(BaseModel):
     """Standard error response body."""
 

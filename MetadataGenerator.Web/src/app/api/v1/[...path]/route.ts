@@ -6,11 +6,23 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
+import { Agent } from 'undici';
 
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8000';
 
-/** Timeout for proxied requests (120 seconds) to handle long Azure analysis. */
-const PROXY_TIMEOUT_MS = 120_000;
+/** Timeout for proxied requests (10 minutes) to handle long-running Azure audio analysis. */
+const PROXY_TIMEOUT_MS = 600_000;
+
+/**
+ * Custom undici Agent with extended timeouts.
+ * The default headersTimeout (300s) is too short for Azure audio analysis
+ * which can take 5+ minutes. This overrides both the headers and body
+ * timeouts to match our abort controller timeout.
+ */
+const longTimeoutDispatcher = new Agent({
+  headersTimeout: PROXY_TIMEOUT_MS,
+  bodyTimeout: PROXY_TIMEOUT_MS,
+});
 
 /** Headers that must not be forwarded through the proxy. */
 const SKIP_HEADERS = new Set([
@@ -60,6 +72,8 @@ async function proxyRequest(
       headers,
       body,
       signal: controller.signal,
+      // @ts-expect-error -- dispatcher is a Node.js/undici-specific fetch option
+      dispatcher: longTimeoutDispatcher,
     });
 
     // Forward response headers

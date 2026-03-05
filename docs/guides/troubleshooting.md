@@ -76,13 +76,28 @@ The frontend proxies all `/api/v1/*` requests through a Next.js Route Handler to
    BACKEND_URL=http://localhost:8000
    ```
 
-### "Internal Server Error" on file upload (long-running requests)
+### "Internal Server Error" or 502/504 on file upload
 
-Azure Content Understanding analysis can take 30+ seconds for large files. The Route Handler proxy has a 120-second timeout. If you still see timeouts:
+The frontend proxies requests through a Next.js Route Handler with a 600-second timeout and a custom `undici` `Agent`. Common causes and fixes:
 
-- Check the backend terminal for `Analysis complete` logs
+**502 Bad Gateway (`UND_ERR_HEADERS_TIMEOUT`)**
+
+Node.js's built-in `fetch` (undici) has a default `headersTimeout` of 300 s. If the backend takes longer, the proxy fails with a 502 before the `AbortController` timeout fires. The Route Handler uses a custom `undici.Agent` with `headersTimeout: 600_000` and `bodyTimeout: 600_000` to prevent this. If you see this error after modifying `route.ts`, ensure the `dispatcher` option is still in place.
+
+**504 Gateway Timeout (audio files)**
+
+Audio analysis can take 10–20+ minutes on Azure Content Understanding. The frontend uses an **async submit + poll** pattern for audio to avoid this:
+
+1. `POST /api/v1/analyze/audio/submit` → returns `{job_id}` in ~2 s (HTTP 202)
+2. Frontend polls `GET /api/v1/analyze/audio/status/{job_id}` every 5 s
+
+If audio still times out, ensure the frontend is using the submit+poll flow (`FileUpload.tsx`) and not the synchronous `/analyze/audio` endpoint.
+
+**General troubleshooting:**
+
+- Check the backend terminal for `Analysis complete` or `Audio job ... completed` logs
 - Ensure the backend isn't restarting mid-request (uvicorn `--reload` can cause this)
-- Test the backend directly: `curl -X POST http://localhost:8000/api/v1/analyze/batch -F 'files=@photo.jpg'`
+- Test the backend directly: `curl -X POST http://localhost:8000/api/v1/analyze/image -F 'file=@photo.jpg'`
 
 ## Documentation Issues
 
@@ -134,7 +149,17 @@ If using **API key** auth:
 
 ### Timeout errors
 
-Azure Content Understanding analysis can take 10–30+ seconds per file depending on size. The backend retries transient errors (HTTP 429, 503) with exponential back-off up to 3 times. The frontend proxy has a 120-second timeout for each request.
+Azure Content Understanding analysis times vary by media type:
+
+- **Images**: typically 20–40 seconds per file.
+- **Audio**: can take **10–20+ minutes** for files near the 15-minute duration limit, due to transcription + LLM completion.
+
+The backend retries transient errors (HTTP 429, 503) with exponential back-off up to 3 times. The SDK polling interval is set to 5 seconds (overriding the default 30 s) to detect completion faster.
+
+The frontend uses per-file sequential uploads with different strategies per file type:
+
+- Images are uploaded synchronously through the 600-second proxy.
+- Audio files use an async submit + poll pattern that has no timeout ceiling (polls every 5 s for up to 30 minutes).
 
 ## Getting Help
 

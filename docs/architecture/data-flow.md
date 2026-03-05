@@ -9,13 +9,13 @@ graph LR
     end
 
     subgraph Next.js Server
-        RP["Route Handler Proxy<br/>(120 s timeout)"]
+        RP["Route Handler Proxy<br/>(600 s timeout, undici Agent)"]
     end
 
     subgraph FastAPI Backend
         MW["Middleware<br/>(CORS · Correlation ID)"]
         RT["Routers<br/>(image · audio · batch)"]
-        SVC["Content Understanding<br/>Service"]
+        SVC["Content Understanding<br/>Service<br/>(5 s poll interval)"]
     end
 
     subgraph Azure
@@ -31,7 +31,7 @@ graph LR
     CU -->|"poll result"| SVC
 ```
 
-## Single File Analysis
+## Single File Analysis (Image)
 
 ```mermaid
 sequenceDiagram
@@ -44,17 +44,17 @@ sequenceDiagram
 
     User->>Browser: Upload file
     Browser->>Proxy: POST /api/v1/analyze/image<br/>(multipart/form-data)
-    Proxy->>API: Forward request<br/>(120 s timeout)
+    Proxy->>API: Forward request<br/>(600 s timeout)
     API->>API: Validate file (type, size, magic bytes)
     API->>API: Extract EXIF metadata (images only)
 
     API->>Auth: Acquire OAuth 2.0 token
     Auth-->>API: Bearer token
 
-    API->>CU: begin_analyze_binary<br/>(analyzer=imageMetadataExtractor)
+    API->>CU: begin_analyze_binary<br/>(analyzer=imageMetadataExtractor,<br/>polling_interval=5s)
     CU-->>API: 202 Accepted + Operation-Location
 
-    loop Poll until complete
+    loop Poll every 5 seconds until complete
         API->>CU: GET analyzerResults/{id}
         CU-->>API: 200 (status: running or succeeded)
     end
@@ -66,7 +66,57 @@ sequenceDiagram
     Browser-->>User: Display metadata tile
 ```
 
-## Batch Upload Flow
+## Audio File Analysis (Async Submit + Poll)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Browser as Next.js SPA
+    participant Proxy as Route Handler Proxy
+    participant API as FastAPI Backend
+    participant Auth as Entra ID / DefaultAzureCredential
+    participant CU as Azure Content Understanding
+
+    User->>Browser: Upload audio file
+    Browser->>Proxy: POST /api/v1/analyze/audio/submit<br/>(multipart/form-data)
+    Proxy->>API: Forward request
+    API->>API: Validate file (format, duration ≤ 15 min)
+    API->>API: Create job (in-memory, 30 min TTL)
+    API-->>Proxy: 202 Accepted {job_id}
+    Proxy-->>Browser: {job_id}
+
+    Note over API,CU: Background task starts
+    API->>Auth: Acquire OAuth 2.0 token
+    Auth-->>API: Bearer token
+    API->>CU: begin_analyze_binary<br/>(analyzer=audioMetadataExtractor,<br/>polling_interval=5s)
+    CU-->>API: 202 Accepted + Operation-Location
+
+    par Frontend polls job status
+        loop Every 5 seconds
+            Browser->>Proxy: GET /api/v1/analyze/audio/status/{job_id}
+            Proxy->>API: Forward request
+            API-->>Proxy: {status: "processing"}
+            Proxy-->>Browser: {status: "processing"}
+        end
+    and Backend polls Azure CU
+        loop Every 5 seconds until complete
+            API->>CU: GET analyzerResults/{id}
+            CU-->>API: 200 (status: running)
+        end
+        CU-->>API: AnalyzeResult (Description, Keywords, Summary)
+        API->>API: Mark job completed with AudioMetadataResponse
+    end
+
+    Browser->>Proxy: GET /api/v1/analyze/audio/status/{job_id}
+    Proxy->>API: Forward request
+    API-->>Proxy: {status: "completed", result: {...}}
+    Proxy-->>Browser: Forward response
+    Browser-->>User: Display audio metadata tile
+```
+
+## Frontend Per-File Upload Flow
+
+The frontend uploads files **sequentially, one at a time** to avoid proxy timeouts. Images use the synchronous endpoint; audio uses async submit + poll.
 
 ```mermaid
 sequenceDiagram
@@ -77,8 +127,43 @@ sequenceDiagram
     participant CU as Azure Content Understanding
 
     User->>Browser: Select multiple files (max 20)
-    Browser->>Proxy: POST /api/v1/analyze/batch<br/>(multipart/form-data)
-    Proxy->>API: Forward request (120 s timeout)
+
+    loop For each file (sequential)
+        alt Image file
+            Browser->>Proxy: POST /api/v1/analyze/image<br/>(single file)
+            Proxy->>API: Forward request (600 s timeout)
+            API->>CU: Analyze image (~30 s)
+            CU-->>API: Result
+            API-->>Proxy: ImageMetadataResponse
+            Proxy-->>Browser: Response
+            Browser-->>User: Display image tile immediately
+        else Audio file
+            Browser->>Proxy: POST /api/v1/analyze/audio/submit
+            Proxy->>API: Forward request
+            API-->>Proxy: 202 {job_id}
+            Proxy-->>Browser: {job_id}
+            loop Poll every 5 s
+                Browser->>Proxy: GET /analyze/audio/status/{job_id}
+                Proxy->>API: Forward
+                API-->>Proxy: {status}
+                Proxy-->>Browser: {status}
+            end
+            Browser-->>User: Display audio tile when completed
+        end
+    end
+```
+
+## Backend Batch Upload Flow (Direct API)
+
+The backend batch endpoint remains available for direct API consumers (not used by the web frontend).
+
+```mermaid
+sequenceDiagram
+    participant Client as API Client
+    participant API as FastAPI Backend
+    participant CU as Azure Content Understanding
+
+    Client->>API: POST /api/v1/analyze/batch<br/>(multipart/form-data, up to 20 files)
     API->>API: Validate batch (max 20 files)
     API->>API: Classify each file (image/audio/unknown)
 
@@ -94,9 +179,7 @@ sequenceDiagram
     end
 
     API->>API: Sort results by file_index
-    API-->>Proxy: BatchAnalysisResponse (ordered results)
-    Proxy-->>Browser: Forward response
-    Browser-->>User: Display tile grid with results
+    API-->>Client: BatchAnalysisResponse (ordered results)
 ```
 
 ## Webhook Integration Flow

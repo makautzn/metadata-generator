@@ -112,6 +112,13 @@ class AzureContentUnderstandingService:
                         analyzer_id=analyzer_id,
                         binary_input=file_bytes,
                         content_type=content_type,
+                        polling_interval=5,
+                    )
+                    logger.info(
+                        "Analysis submitted (analyzer=%s, attempt=%d, operation=%s)",
+                        analyzer_id,
+                        attempt + 1,
+                        getattr(poller, "operation_id", "unknown"),
                     )
                     result: AnalyzeResult = await poller.result()
                     logger.info(
