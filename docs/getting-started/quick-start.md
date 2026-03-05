@@ -7,7 +7,8 @@ Get the Metadata Generator running locally in under 5 minutes.
 ```bash
 cd MetadataGenerator.Api
 cp .env.example .env
-# Add your Azure credentials to .env
+# Add your Azure endpoint to .env, then authenticate:
+az login   # Entra ID — or set AZURE_CONTENT_UNDERSTANDING_KEY in .env
 uv sync
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```

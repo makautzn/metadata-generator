@@ -32,7 +32,7 @@ uv sync
 
 ### CORS errors in browser console
 
-Check that `ALLOWED_ORIGINS` in your `.env` includes the frontend URL:
+In normal operation, the frontend uses a server-side proxy so CORS shouldn't be an issue. If you bypass the proxy and call the backend directly, check that `ALLOWED_ORIGINS` in your `.env` includes the frontend URL:
 
 ```env
 ALLOWED_ORIGINS=["http://localhost:3000"]
@@ -59,13 +59,30 @@ pnpm install
 pnpm typecheck
 ```
 
-### API requests fail in development
+### API requests fail in development ("Failed to fetch" or 502)
 
-Ensure the backend server is running on port 8000 and that `NEXT_PUBLIC_API_URL` is set:
+The frontend proxies all `/api/v1/*` requests through a Next.js Route Handler to the backend. Check:
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+1. **Backend is running** on port 8000:
+   ```bash
+   curl http://localhost:8000/health
+   ```
+2. **Proxy is working** through the frontend:
+   ```bash
+   curl http://localhost:3000/api/v1/analyze/batch -X POST
+   ```
+3. If using a custom backend URL, set `BACKEND_URL` in the frontend environment:
+   ```env
+   BACKEND_URL=http://localhost:8000
+   ```
+
+### "Internal Server Error" on file upload (long-running requests)
+
+Azure Content Understanding analysis can take 30+ seconds for large files. The Route Handler proxy has a 120-second timeout. If you still see timeouts:
+
+- Check the backend terminal for `Analysis complete` logs
+- Ensure the backend isn't restarting mid-request (uvicorn `--reload` can cause this)
+- Test the backend directly: `curl -X POST http://localhost:8000/api/v1/analyze/batch -F 'files=@photo.jpg'`
 
 ## Documentation Issues
 
@@ -88,15 +105,36 @@ pip install mkdocs-material mkdocs-minify-plugin
 
 ## Azure Content Understanding
 
+### `403 AuthenticationTypeDisabled: Key based authentication is disabled`
+
+The Azure resource has API key authentication disabled. Switch to Entra ID authentication:
+
+1. Clear the API key in `.env`:
+   ```env
+   AZURE_CONTENT_UNDERSTANDING_KEY=
+   ```
+2. Log in with Azure CLI:
+   ```bash
+   az login
+   ```
+3. Restart the backend server.
+
 ### `401 Unauthorized`
 
-- Verify `AZURE_CONTENT_UNDERSTANDING_ENDPOINT` is correct
-- Verify `AZURE_CONTENT_UNDERSTANDING_KEY` is valid and not expired
+If using **Entra ID** (`DefaultAzureCredential`):
+
+- Ensure you're logged in: `az account show`
+- Verify your account has the correct RBAC role on the Azure AI resource
+- Check the backend logs for which credential was used (look for `DefaultAzureCredential acquired a token from ...`)
+
+If using **API key** auth:
+
+- Verify `AZURE_CONTENT_UNDERSTANDING_KEY` is correct and not expired
 - Ensure the key matches the endpoint's resource
 
 ### Timeout errors
 
-Azure Content Understanding analysis can take several seconds per file. For batch processing, expect longer total times. The timeout is configurable via environment variables.
+Azure Content Understanding analysis can take 10–30+ seconds per file depending on size. The backend retries transient errors (HTTP 429, 503) with exponential back-off up to 3 times. The frontend proxy has a 120-second timeout for each request.
 
 ## Getting Help
 

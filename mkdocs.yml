@@ -68,6 +68,7 @@ nav:
       - Overview: architecture/overview.md
       - System Design: architecture/system-design.md
       - Data Flow: architecture/data-flow.md
+      - Azure Content Understanding: architecture/azure-content-understanding-usage.md
   - API Reference:
       - REST API: api/rest-api.md
       - Webhook API: api/webhook-api.md

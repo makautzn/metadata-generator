@@ -14,7 +14,9 @@ from typing import Any, Protocol, runtime_checkable
 from azure.ai.contentunderstanding.aio import ContentUnderstandingClient
 from azure.ai.contentunderstanding.models import AnalyzeResult, ContentField
 from azure.core.credentials import AzureKeyCredential
+from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.exceptions import HttpResponseError, ServiceRequestError
+from azure.identity.aio import DefaultAzureCredential
 
 from app.core.exceptions import (
     AnalysisServiceError,
@@ -53,18 +55,21 @@ class AzureContentUnderstandingService:
     def __init__(
         self,
         endpoint: str,
-        key: str,
+        key: str = "",
         *,
         max_retries: int = 3,
     ) -> None:
-        if not endpoint or not key:
+        if not endpoint:
             raise ConfigurationError(
                 error_code="MISSING_CONFIG",
-                message="Azure Content Understanding endpoint and key are required",
+                message="Azure Content Understanding endpoint is required",
             )
         self._endpoint = endpoint
-        self._credential = AzureKeyCredential(key)
+        self._credential: AzureKeyCredential | AsyncTokenCredential = (
+            AzureKeyCredential(key) if key else DefaultAzureCredential()
+        )
         self._max_retries = max_retries
+        self._owns_credential = not key  # we created the DefaultAzureCredential
 
     # ------------------------------------------------------------------
     # Public API

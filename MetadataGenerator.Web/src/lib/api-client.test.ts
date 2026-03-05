@@ -10,11 +10,11 @@ import { buildUrl, get, post, put, del, uploadFile } from './api-client';
 
 describe('buildUrl', () => {
   it('constructs a full URL from a relative path', () => {
-    expect(buildUrl('/health')).toBe('http://localhost:8000/api/v1/health');
+    expect(buildUrl('/health')).toBe('/api/v1/health');
   });
 
   it('normalizes paths without leading slash', () => {
-    expect(buildUrl('health')).toBe('http://localhost:8000/api/v1/health');
+    expect(buildUrl('health')).toBe('/api/v1/health');
   });
 });
 
@@ -43,7 +43,7 @@ describe('API client HTTP methods', () => {
     const result = await get<{ status: string }>('/health');
     expect(result).toEqual({ ok: true, data: { status: 'healthy' } });
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/api/v1/health',
+      '/api/v1/health',
       expect.objectContaining({ method: 'GET' }),
     );
   });

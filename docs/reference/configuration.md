@@ -27,17 +27,29 @@ The backend uses [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/p
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `AZURE_CONTENT_UNDERSTANDING_ENDPOINT` | `str` | — | Azure Content Understanding service endpoint URL |
-| `AZURE_CONTENT_UNDERSTANDING_KEY` | `str` | — | API key for Azure Content Understanding |
+| `AZURE_CONTENT_UNDERSTANDING_KEY` | `str` | `""` (empty) | API key. Leave empty to use Entra ID (`DefaultAzureCredential`) |
+
+### Webhook
+
+| Setting | Type | Default | Description |
+|---------|------|---------|------------|
+| `WEBHOOK_API_KEYS` | `list[str]` | `[]` | Allowed API keys for webhook authentication |
 
 ## Frontend Configuration
 
-The frontend uses Next.js environment variables. Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser.
+The frontend uses Next.js environment variables. Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser. Server-only variables (no prefix) are used by the Route Handler proxy.
 
-### Public Variables
+### Public Variables (browser)
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Backend API base URL |
+|----------|---------|------------|
+| `NEXT_PUBLIC_API_URL` | `/api/v1` | API base URL used in browser fetch calls |
+
+### Server Variables (proxy)
+
+| Variable | Default | Description |
+|----------|---------|------------|
+| `BACKEND_URL` | `http://localhost:8000` | Backend origin for the server-side Route Handler proxy |
 
 ## File Limits
 

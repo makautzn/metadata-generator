@@ -51,14 +51,13 @@ Analyze a single image and extract metadata.
 ```json
 {
   "file_name": "photo.jpg",
-  "content_type": "image/jpeg",
-  "file_size": 1234567,
-  "metadata": {
-    "description": "...",
-    "keywords": ["...", "..."],
-    "caption": "..."
-  },
-  "exif": { ... }
+  "file_size": 2048576,
+  "mime_type": "image/jpeg",
+  "description": "Ein Tennisspieler schlägt ...",
+  "keywords": ["Tennis", "Sport", "Rasen"],
+  "caption": "Tennisspieler bei den French Open.",
+  "exif": { "camera_model": "Canon EOS R5", "date_taken": "2025-06-15" },
+  "processing_time_ms": 3200
 }
 ```
 
@@ -72,21 +71,20 @@ Analyze a single audio file and extract metadata.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `file` | `file` | Audio file (MP3, WAV, M4A, OGG). Max 10 minutes. |
+| `file` | `file` | Audio file (MP3, WAV, M4A, OGG). Max 15 minutes. |
 
 **Response** `200 OK`:
 
 ```json
 {
-  "file_name": "recording.mp3",
-  "content_type": "audio/mpeg",
-  "file_size": 2345678,
-  "metadata": {
-    "description": "...",
-    "keywords": ["...", "..."],
-    "summary": "..."
-  },
-  "duration_seconds": 180.5
+  "file_name": "interview.mp3",
+  "file_size": 5242880,
+  "mime_type": "audio/mpeg",
+  "description": "Ein Interview über die aktuelle Wirtschaftslage ...",
+  "keywords": ["Wirtschaft", "Interview", "Konjunktur"],
+  "summary": "Das Interview behandelt die aktuelle Konjunkturentwicklung.",
+  "duration_seconds": 342.5,
+  "processing_time_ms": 8500
 }
 ```
 
@@ -94,7 +92,7 @@ Analyze a single audio file and extract metadata.
 
 ### `POST /api/v1/analyze/batch`
 
-Analyze up to 20 files (images and/or audio) in a single request.
+Analyze up to 20 files (images and/or audio) in a single request. Files are processed concurrently (up to 5 at a time).
 
 **Request**: `multipart/form-data` with multiple `files` fields.
 
@@ -103,12 +101,36 @@ Analyze up to 20 files (images and/or audio) in a single request.
 ```json
 {
   "results": [
-    { "status": "success", "file_name": "...", "metadata": { ... } },
-    { "status": "error", "file_name": "...", "error": { ... } }
+    {
+      "file_name": "photo.jpg",
+      "file_index": 0,
+      "status": "success",
+      "file_type": "image",
+      "metadata": {
+        "file_name": "photo.jpg",
+        "file_size": 2048576,
+        "mime_type": "image/jpeg",
+        "description": "...",
+        "keywords": ["..."],
+        "caption": "...",
+        "exif": {},
+        "processing_time_ms": 3200
+      },
+      "error": null
+    },
+    {
+      "file_name": "broken.xyz",
+      "file_index": 1,
+      "status": "error",
+      "file_type": "unknown",
+      "metadata": null,
+      "error": "Unsupported file type"
+    }
   ],
-  "total": 3,
-  "successful": 2,
-  "failed": 1
+  "total_files": 2,
+  "successful": 1,
+  "failed": 1,
+  "total_processing_time_ms": 3450
 }
 ```
 

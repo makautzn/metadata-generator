@@ -87,10 +87,11 @@ class TestConfiguration:
             AzureContentUnderstandingService(endpoint="", key="some-key")
         assert exc_info.value.error_code == "MISSING_CONFIG"
 
-    def test_missing_key_raises(self) -> None:
-        with pytest.raises(ConfigurationError) as exc_info:
-            AzureContentUnderstandingService(endpoint="https://test.azure.com", key="")
-        assert exc_info.value.error_code == "MISSING_CONFIG"
+    def test_missing_key_uses_default_credential(self) -> None:
+        service = AzureContentUnderstandingService(
+            endpoint="https://test.azure.com", key=""
+        )
+        assert isinstance(service, ContentUnderstandingServiceProtocol)
 
     def test_valid_config_creates_service(self) -> None:
         service = _build_service()

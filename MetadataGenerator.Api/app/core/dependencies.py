@@ -22,14 +22,17 @@ def get_settings() -> Settings:
     return Settings()
 
 
+@lru_cache
 def get_content_understanding_service() -> ContentUnderstandingServiceProtocol:
     """Create and return a Content Understanding service instance.
 
-    Reads configuration from the cached settings.  Override this
-    dependency in tests to inject a mock service.
+    Cached so that a single ``DefaultAzureCredential`` (and its internal
+    HTTP session) is reused across requests instead of being recreated each
+    time.  Override this dependency in tests to inject a mock service.
     """
     settings = get_settings()
     return AzureContentUnderstandingService(
         endpoint=settings.azure_content_understanding_endpoint,
         key=settings.azure_content_understanding_key,
     )
+

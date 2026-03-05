@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     )
     azure_content_understanding_key: str = Field(
         default="",
-        description="Azure Content Understanding service API key",
+        description="Azure Content Understanding service API key (leave empty to use Entra ID)",
     )
 
     # Webhook

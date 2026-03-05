@@ -28,14 +28,24 @@ Both analyzers are created on API version **`2025-11-01`** and use camelCase IDs
 
 ## 3. Application Configuration
 
-The backend needs two environment variables to connect to the Azure service:
+The backend needs one required and one optional environment variable to connect to the Azure service:
 
-| Variable | Description |
-|---|---|
-| `AZURE_CONTENT_UNDERSTANDING_ENDPOINT` | The HTTPS endpoint of the Azure Content Understanding resource |
-| `AZURE_CONTENT_UNDERSTANDING_KEY` | An API key for authentication |
+| Variable | Required | Description |
+|---|---|---|
+| `AZURE_CONTENT_UNDERSTANDING_ENDPOINT` | Yes | The HTTPS endpoint of the Azure Content Understanding resource |
+| `AZURE_CONTENT_UNDERSTANDING_KEY` | No | An API key for authentication. Leave empty to use Entra ID (`DefaultAzureCredential`) |
 
 These are loaded at startup via Pydantic Settings (`app/core/config.py` → `Settings`) and injected through FastAPI's dependency injection system (`app/core/dependencies.py`).
+
+### Authentication
+
+When `AZURE_CONTENT_UNDERSTANDING_KEY` is empty (or omitted), the service authenticates using `DefaultAzureCredential` from `azure-identity`. This supports:
+
+- **Azure CLI** (`az login`) for local development
+- **Managed Identity** for Azure-hosted environments
+- **Environment variables** for service principal/workload identity
+
+When a key is provided, the service falls back to `AzureKeyCredential`.
 
 ---
 
@@ -180,7 +190,7 @@ All service errors inherit from `ContentUnderstandingError`:
 
 ### Dependency Injection
 
-The service is instantiated via `get_content_understanding_service()` in `app/core/dependencies.py` and injected into route handlers using FastAPI's `Depends()`. In tests, this dependency is overridden with a mock service.
+The service is instantiated via `get_content_understanding_service()` in `app/core/dependencies.py` (decorated with `@lru_cache` so only one instance is created per process) and injected into route handlers using FastAPI's `Depends()`. In tests, this dependency is overridden with a mock service.
 
 ---
 

@@ -8,7 +8,7 @@
 import type { ApiError, ApiResult } from './types';
 
 /** Base URL for all API requests — configurable via env */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1';
 
 /**
  * Build a full URL for the given API path.

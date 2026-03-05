@@ -43,11 +43,27 @@ cp .env.local.example .env.local
 ## Azure Content Understanding
 
 1. Create an Azure Content Understanding resource in the [Azure Portal](https://portal.azure.com).
-2. Copy the **endpoint** and **API key** from the resource's Keys and Endpoint page.
-3. Add them to `MetadataGenerator.Api/.env`:
+2. Authenticate using one of the following methods:
+
+### Option A: Entra ID (recommended)
+
+```bash
+az login
+```
+
+Add only the endpoint to `MetadataGenerator.Api/.env`:
 
 ```env
-AZURE_CONTENT_UNDERSTANDING_ENDPOINT=https://<your-resource>.cognitiveservices.azure.com
+AZURE_CONTENT_UNDERSTANDING_ENDPOINT=https://<your-resource>.services.ai.azure.com
+AZURE_CONTENT_UNDERSTANDING_KEY=
+```
+
+### Option B: API Key
+
+Copy the **endpoint** and **API key** from the resource's Keys and Endpoint page:
+
+```env
+AZURE_CONTENT_UNDERSTANDING_ENDPOINT=https://<your-resource>.services.ai.azure.com
 AZURE_CONTENT_UNDERSTANDING_KEY=<your-key>
 ```
 
