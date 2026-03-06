@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from azure.ai.contentunderstanding.aio import ContentUnderstandingClient
 from azure.ai.contentunderstanding.models import AnalyzeResult, ContentField
@@ -24,6 +24,9 @@ from app.core.exceptions import (
     TransientError,
 )
 from app.models.analysis import AudioAnalysisResult, ImageAnalysisResult
+
+if TYPE_CHECKING:
+    from app.services.audio_speech_llm import SpeechAndLLMAudioService
 
 logger = logging.getLogger(__name__)
 
@@ -357,3 +360,27 @@ class AzureContentUnderstandingService:
             keywords=keywords,
             summary=summary,
         )
+
+
+class CompositeContentUnderstandingService:
+    """Routes image analysis to Azure CU and audio to Speech+LLM workaround.
+
+    Azure Content Understanding's audio pipeline is currently non-functional
+    (operations remain stuck in "Running").  This composite delegates audio
+    analysis to :class:`SpeechAndLLMAudioService` while keeping the proven
+    CU pipeline for images.
+    """
+
+    def __init__(
+        self,
+        cu_service: AzureContentUnderstandingService,
+        audio_service: "SpeechAndLLMAudioService",
+    ) -> None:
+        self._cu = cu_service
+        self._audio = audio_service
+
+    async def analyze_image(self, file_bytes: bytes, content_type: str) -> ImageAnalysisResult:
+        return await self._cu.analyze_image(file_bytes, content_type)
+
+    async def analyze_audio(self, file_bytes: bytes, content_type: str) -> AudioAnalysisResult:
+        return await self._audio.analyze_audio(file_bytes, content_type)

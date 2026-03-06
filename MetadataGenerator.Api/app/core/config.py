@@ -40,6 +40,12 @@ class Settings(BaseSettings):
         description="Azure Content Understanding service API key (leave empty to use Entra ID)",
     )
 
+    # Azure OpenAI (used for audio metadata extraction workaround)
+    azure_openai_model: str = Field(
+        default="gpt-4o",
+        description="Azure OpenAI model name for audio metadata extraction",
+    )
+
     # Webhook
     webhook_api_keys: list[str] = Field(
         default_factory=list,
