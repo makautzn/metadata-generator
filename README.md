@@ -14,7 +14,7 @@ The Metadata Generator is a full-stack PoC application designed for editorial te
 | Capability | Details |
 |---|---|
 | **Image analysis** | Description, caption, keywords, and EXIF extraction for JPEG, PNG, TIFF, WebP (max 10 MB) |
-| **Audio analysis** | Description, one-sentence summary, and keywords for MP3, WAV, OGG, FLAC, M4A, AAC, WMA (max 100 MB, max 15 min) |
+| **Audio analysis** | Description, one-sentence summary, and keywords for MP3, WAV, OGG, FLAC, M4A (max 15 min) |
 | **Batch processing** | Upload multiple files at once with real-time progress tracking |
 | **Copy & export** | One-click copy of metadata fields; export results as JSON or CSV |
 | **Webhook integration** | Receive processing results via authenticated webhook callbacks |
@@ -27,7 +27,9 @@ The Metadata Generator is a full-stack PoC application designed for editorial te
 | `GET` | `/health` | Health check |
 | `GET` | `/health/ready` | Readiness probe (verifies Azure connectivity) |
 | `POST` | `/api/v1/analyze/image` | Analyze a single image |
-| `POST` | `/api/v1/analyze/audio` | Analyze a single audio file |
+| `POST` | `/api/v1/analyze/audio` | Analyze a single audio file (sync) |
+| `POST` | `/api/v1/analyze/audio/submit` | Submit audio for async analysis (returns job ID) |
+| `GET` | `/api/v1/analyze/audio/status/{job_id}` | Poll async audio analysis status |
 | `POST` | `/api/v1/analyze/batch` | Analyze multiple files in one request |
 | `POST` | `/api/v1/webhook/results` | Receive webhook result callbacks |
 
@@ -43,7 +45,8 @@ Interactive API docs are available at `/api/v1/docs` (Swagger) and `/api/v1/redo
   - Python 3.12+
   - [uv](https://docs.astral.sh/uv/) (Python package manager)
   - Node.js 20+ with [pnpm](https://pnpm.io/)
-- An **Azure AI Content Understanding** resource (endpoint URL + API key)
+- An **Azure AI Content Understanding** resource ([create one](https://portal.azure.com))
+- **Azure CLI** for Entra ID authentication (`az login`)
 
 ### 1. Clone and open
 
@@ -56,11 +59,14 @@ If using VS Code with Dev Containers, reopen in the container — all tooling is
 
 ### 2. Configure the backend
 
-Create a `.env` file in `MetadataGenerator.Api/`:
+Authenticate via Entra ID and create a `.env` file in `MetadataGenerator.Api/`:
+
+```bash
+az login
+```
 
 ```env
 AZURE_CONTENT_UNDERSTANDING_ENDPOINT=https://<your-resource>.services.ai.azure.com
-AZURE_CONTENT_UNDERSTANDING_KEY=<your-api-key>
 ```
 
 ### 3. Start the backend
@@ -108,7 +114,7 @@ metadata-generator/
 │   │   ├── routers/               # FastAPI route handlers
 │   │   ├── services/              # Azure Content Understanding client
 │   │   └── utils/                 # File validation, EXIF, audio utils
-│   └── tests/                     # pytest test suite (118 tests, ~92% coverage)
+│   └── tests/                     # pytest test suite (137 tests, ~88% coverage)
 ├── MetadataGenerator.Web/          # Next.js frontend
 │   └── src/
 │       ├── app/                   # Page layout and entry point
@@ -185,7 +191,7 @@ All backend configuration is via environment variables (loaded from `.env`):
 | Variable | Required | Description |
 |---|---|---|
 | `AZURE_CONTENT_UNDERSTANDING_ENDPOINT` | Yes | Azure AI Content Understanding endpoint URL |
-| `AZURE_CONTENT_UNDERSTANDING_KEY` | Yes | Azure AI Content Understanding API key |
+| `AZURE_CONTENT_UNDERSTANDING_KEY` | No | API key (leave empty to use Entra ID via `DefaultAzureCredential`) |
 | `ALLOWED_ORIGINS` | No | CORS origins (default: `["http://localhost:3000"]`) |
 | `LOG_LEVEL` | No | Logging level (default: `INFO`) |
 | `ENVIRONMENT` | No | Environment name (default: `development`) |

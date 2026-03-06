@@ -58,7 +58,7 @@ These limits are enforced by the API:
 | Limit | Value | Applies To |
 |-------|-------|-----------|
 | Max image file size | 10 MB | Image uploads |
-| Max audio duration | 10 minutes | Audio uploads |
+| Max audio duration | 15 minutes | Audio uploads |
 | Max batch size | 20 files | Batch uploads |
-| Supported image formats | JPEG, PNG, TIFF, BMP, WebP | Image analysis |
+| Supported image formats | JPEG, PNG, TIFF, WebP | Image analysis |
 | Supported audio formats | MP3, WAV, FLAC, OGG, M4A | Audio analysis |
