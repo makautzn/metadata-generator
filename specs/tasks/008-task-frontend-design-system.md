@@ -1,8 +1,8 @@
-# 008 — Frontend Design System (Rheinpfalz-Inspired)
+# 008 — Frontend Design System
 
 ## Description
 
-Establish the visual design system for the PoC web application, inspired by the clean editorial aesthetic of *DIE RHEINPFALZ*. This includes design tokens (colors, typography, spacing), base component styles, and reusable UI primitives (button, card, badge/chip, layout containers). Covers requirements WEB-15, WEB-16, WEB-17.
+Establish the visual design system for the PoC web application with a clean editorial aesthetic. This includes design tokens (colors, typography, spacing), base component styles, and reusable UI primitives (button, card, badge/chip, layout containers). Covers requirements WEB-15, WEB-16, WEB-17.
 
 ## Dependencies
 
@@ -14,7 +14,7 @@ Establish the visual design system for the PoC web application, inspired by the 
 
 Define in `styles/theme.ts` and map to CSS custom properties:
 
-- **Color palette**: Neutral, editorial tones — white/off-white backgrounds, dark gray text, a single accent color (inspired by Rheinpfalz brand — e.g., a warm red or deep blue). Include success, error, and warning semantic colors.
+- **Color palette**: Neutral, editorial tones — white/off-white backgrounds, dark gray text, a single accent color (e.g., a warm red or deep blue). Include success, error, and warning semantic colors.
 - **Typography**: Clean sans-serif stack (Inter, system-ui, or similar). Define heading scales (H1–H4), body text, caption, and label sizes with appropriate line heights.
 - **Spacing**: Consistent spacing scale (4px base: 4, 8, 12, 16, 24, 32, 48, 64).
 - **Border radius**: Subtle rounding (4px for cards, 16px for badges/chips).
@@ -73,4 +73,4 @@ The following issue was discovered and resolved during end-to-end testing:
 
 | # | Finding | Root Cause | Resolution |
 |---|---------|------------|------------|
-| 1 | **Dark mode variants causing unintended styling** | The main page layout used Tailwind `dark:` variants (e.g., `dark:bg-neutral-900`, `dark:border-neutral-700`), which could activate depending on the user's OS theme preference. This conflicted with the intended clean, light editorial aesthetic inspired by *DIE RHEINPFALZ*. | Removed all `dark:` Tailwind variants from `page.tsx`. Replaced with explicit light-only values: `bg-[#f9fafb]` for page background, `border-[#e5e7eb]` for borders, and `text-[#9ca3af]` for muted text. The design system now enforces a consistent light editorial appearance regardless of the user's system theme. |
+| 1 | **Dark mode variants causing unintended styling** | The main page layout used Tailwind `dark:` variants (e.g., `dark:bg-neutral-900`, `dark:border-neutral-700`), which could activate depending on the user's OS theme preference. This conflicted with the intended clean, light editorial aesthetic. | Removed all `dark:` Tailwind variants from `page.tsx`. Replaced with explicit light-only values: `bg-[#f9fafb]` for page background, `border-[#e5e7eb]` for borders, and `text-[#9ca3af]` for muted text. The design system now enforces a consistent light editorial appearance regardless of the user's system theme. |

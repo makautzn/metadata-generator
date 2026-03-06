@@ -4,7 +4,7 @@ AI-powered metadata extraction for images and audio files, built for editorial w
 
 ## Overview
 
-The Metadata Generator is a full-stack PoC application designed for editorial teams (inspired by *DIE RHEINPFALZ*) to automate the tagging and description of media assets. It consists of:
+The Metadata Generator is a full-stack PoC application designed for editorial teams to automate the tagging and description of media assets. It consists of:
 
 - **Backend API** (`MetadataGenerator.Api`) — Python/FastAPI service that processes uploads via Azure AI Content Understanding
 - **Frontend** (`MetadataGenerator.Web`) — Next.js/React web app with a clean, light editorial UI

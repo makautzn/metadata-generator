@@ -1,8 +1,8 @@
 /**
  * Design tokens for the Metadata Generator UI.
  *
- * Inspired by DIE RHEINPFALZ editorial design — clean, authoritative,
- * with a focus on readability and content hierarchy.
+ * Clean, authoritative editorial design with a focus on readability
+ * and content hierarchy.
  */
 
 export const colors = {
@@ -35,7 +35,7 @@ export const colors = {
     900: '#111827',
   },
 
-  /** Accent — warm red similar to RHEINPFALZ masthead */
+  /** Accent — warm editorial red */
   accent: {
     500: '#c0392b',
     600: '#a93226',

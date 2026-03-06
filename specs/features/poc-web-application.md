@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-A single-page web application that serves as the user-facing front end for the PoC. It allows editorial testers to upload multiple image and audio files, triggers metadata extraction, and presents the results in a visual tile layout. The look and feel is inspired by *DIE RHEINPFALZ* (clean, modern, editorial aesthetic).
+A single-page web application that serves as the user-facing front end for the PoC. It allows editorial testers to upload multiple image and audio files, triggers metadata extraction, and presents the results in a visual tile layout. The look and feel follows a clean, modern, editorial aesthetic.
 
 ---
 
@@ -47,7 +47,7 @@ A single-page web application that serves as the user-facing front end for the P
 | ID | Requirement |
 |----|-------------|
 | WEB-15 | The application must be a **single page** — no multi-page navigation or routing required. |
-| WEB-16 | The visual design must follow the **editorial, clean aesthetic** of *DIE RHEINPFALZ* (Aktuelle Nachrichten aus der Pfalz) — neutral color palette, clear typography, structured layout. |
+| WEB-16 | The visual design must follow an **editorial, clean aesthetic** — neutral color palette, clear typography, structured layout. |
 | WEB-17 | The layout must be **responsive** and usable on desktop screens (mobile optimization is not required for the PoC). |
 
 ---

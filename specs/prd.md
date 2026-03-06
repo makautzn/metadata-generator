@@ -10,7 +10,7 @@ Media organizations handle large volumes of images and audio files daily. Manual
 
 The **Proof of Concept (PoC)** validates the feasibility and quality of automated metadata extraction on a small, representative dataset. The **Production** phase scales the solution to handle real editorial workloads and integrates into existing publishing workflows.
 
-**Primary users:** Editorial staff, media librarians, and content managers at a regional news publisher (modeled on *DIE RHEINPFALZ*).
+**Primary users:** Editorial staff, media librarians, and content managers at a regional news publisher.
 
 ---
 
@@ -21,7 +21,7 @@ The **Proof of Concept (PoC)** validates the feasibility and quality of automate
 - **Image Metadata Extraction** — Automatically generate a full-text description, a set of keywords/tags, and a caption for uploaded images.
 - **Audio Metadata Extraction** — Automatically generate a full-text description, a set of keywords/tags, and a one-sentence summary for uploaded audio files.
 - **PoC Web Application** — A simple, modern, single-page website that allows multi-file upload and displays extracted metadata in a tile view.
-- **PoC Design Direction** — Visual design inspired by *DIE RHEINPFALZ* (Aktuelle Nachrichten aus der Pfalz).
+- **PoC Design Direction** — Clean, modern editorial visual design.
 - **Production Webhook Integration** — A webhook endpoint that external systems can call to trigger metadata extraction and receive results.
 
 ### Out of Scope
@@ -80,7 +80,7 @@ The **Proof of Concept (PoC)** validates the feasibility and quality of automate
 
 ### PoC Web Application
 
-- **[REQ-9]** The application must be a **single-page web application** with a clean, modern design inspired by *DIE RHEINPFALZ*.
+- **[REQ-9]** The application must be a **single-page web application** with a clean, modern editorial design.
 - **[REQ-10]** Users must be able to **upload multiple files at once** (images and/or audio).
 - **[REQ-11]** Extracted metadata must be displayed in a **tile view**, with each tile representing one uploaded file and its associated metadata.
 - **[REQ-12]** The application must provide clear **progress/status feedback** during file processing.
@@ -164,7 +164,7 @@ so that metadata is generated automatically and returned for storage in our CMS 
 - **[A-2]** The PoC dataset (10–20 images, 2 audio files) is representative of the types of media the editorial team works with daily.
 - **[A-3]** Internet connectivity to Azure cloud services is available in the target environment.
 - **[A-4]** Stakeholders will provide sample images and audio files for the PoC evaluation.
-- **[A-5]** The visual benchmark (*DIE RHEINPFALZ* website design) is used as directional inspiration, not a pixel-perfect replication target.
+- **[A-5]** The editorial visual design is used as directional inspiration, not a pixel-perfect replication target.
 - **[A-6]** Azure Content Understanding's `disable_face_blurring` configuration and underlying model are capable of identifying well-known public figures with sufficient accuracy for editorial use.
 - **[A-7]** Celebrity identification is limited to persons the AI model recognizes; the system does not maintain a custom face gallery or database.
 - **[A-8]** The PoC test dataset must include images of known celebrities/public figures, sourced specifically for validation of this feature (existing editorial dataset may not contain enough recognizable persons).
